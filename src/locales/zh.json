@@ -1,0 +1,53 @@
+{
+  "app": {
+    "title": "AI-SSH",
+    "savedSessions": "已保存会话",
+    "noSavedSessions": "暂无保存的会话。",
+    "aiAssistant": "AI助手",
+    "aiReady": "已连接到AI。准备就绪可为您转换命令。",
+    "port": "端口",
+    "noActiveSession": "无活动会话",
+    "selectSessionHint": "从侧边栏选择一个会话或创建一个新会话进行连接。",
+    "workspace": "工作区",
+    "standbyMode": "待机模式",
+    "connectToChat": "连接会话后即可与AI助手对话",
+    "langEn": "English",
+    "langZh": "中文"
+  },
+  "sessionForm": {
+    "newSession": "新建会话",
+    "editSession": "编辑会话",
+    "sessionName": "会话名称",
+    "host": "主机/IP *",
+    "port": "端口",
+    "username": "用户名 *",
+    "authentication": "验证方式",
+    "password": "密码",
+    "privateKey": "私钥",
+    "passphrase": "口令(可选)",
+    "tags": "标签 (按回车添加)",
+    "addTag": "添加标签...",
+    "notes": "备注",
+    "envNotes": "环境细节，重要提示...",
+    "cancel": "取消",
+    "saveSession": "保存会话"
+  },
+  "chat": {
+    "aiAssistant": "AI助手",
+    "welcome": "你好！我是当前SSH会话的AI助手。我可以帮你编写命令、调试错误或解释终端中发生的情况。有什么我可以效劳的吗？",
+    "run": "运行",
+    "copy": "复制",
+    "aiCmd": "AI命令",
+    "askAi": "向AI寻求帮助或命令...",
+    "send": "发送",
+    "errorMissingKey": "缺少 GEMINI_API_KEY。请在你的secrets中配置它。",
+    "errorGeneral": "错误"
+  },
+  "terminal": {
+    "connecting": "正在连接到 {{host}}...",
+    "connectionFailed": "连接失败",
+    "retryConnection": "重试连接",
+    "sessionDisconnected": "会话已断开",
+    "reconnect": "重新连接"
+  }
+}

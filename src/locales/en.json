@@ -1,0 +1,53 @@
+{
+  "app": {
+    "title": "AI-SSH",
+    "savedSessions": "Saved Sessions",
+    "noSavedSessions": "No saved sessions.",
+    "aiAssistant": "AI Assistant",
+    "aiReady": "Connected to AI. Ready for command translation.",
+    "port": "Port",
+    "noActiveSession": "No Active Session",
+    "selectSessionHint": "Select a session from the sidebar or create a new one to connect.",
+    "workspace": "Workspace",
+    "standbyMode": "Standby mode",
+    "connectToChat": "Connect to a session to chat with the AI Assistant",
+    "langEn": "English",
+    "langZh": "中文"
+  },
+  "sessionForm": {
+    "newSession": "New Session",
+    "editSession": "Edit Session",
+    "sessionName": "Session Name",
+    "host": "Host/IP *",
+    "port": "Port",
+    "username": "Username *",
+    "authentication": "Authentication",
+    "password": "Password",
+    "privateKey": "Private Key",
+    "passphrase": "Passphrase (Optional)",
+    "tags": "Tags (Press Enter)",
+    "addTag": "Add tag...",
+    "notes": "Notes",
+    "envNotes": "Environment details, important notes...",
+    "cancel": "Cancel",
+    "saveSession": "Save Session"
+  },
+  "chat": {
+    "aiAssistant": "AI Assistant",
+    "welcome": "Hello! I am your AI assistant for this SSH session. I can help you write commands, debug errors, or explain what is happening in your terminal. How can I help?",
+    "run": "Run",
+    "copy": "Copy",
+    "aiCmd": "AI Cmd",
+    "askAi": "Ask AI for help or commands...",
+    "send": "SEND",
+    "errorMissingKey": "GEMINI_API_KEY is missing. Please configure it in your secrets.",
+    "errorGeneral": "Error"
+  },
+  "terminal": {
+    "connecting": "Connecting to {{host}}...",
+    "connectionFailed": "Connection Failed",
+    "retryConnection": "Retry Connection",
+    "sessionDisconnected": "Session Disconnected",
+    "reconnect": "Reconnect"
+  }
+}

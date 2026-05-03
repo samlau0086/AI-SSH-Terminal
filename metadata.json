@@ -1,0 +1,6 @@
+{
+  "name": "AI SSH Terminal",
+  "description": "A web-based AI-powered SSH terminal with conversational capabilities, command history, and session management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}

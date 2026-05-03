@@ -1,0 +1,223 @@
+import { useState, useRef, useEffect } from 'react';
+import { Send, Bot, User, Command, ArrowRight, Play } from 'lucide-react';
+import { GoogleGenAI } from "@google/genai";
+import { cn } from '../lib/utils';
+import Markdown from 'react-markdown';
+import { useTranslation } from 'react-i18next';
+
+interface Props {
+  terminalContext: string;
+  onExecuteCommand?: (cmd: string) => void;
+}
+
+interface Message {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+// Since process.env is injected by Vite manually:
+const apiKey = process.env.GEMINI_API_KEY;
+
+export default function AIChatComponent({ terminalContext, onExecuteCommand }: Props) {
+  const { t } = useTranslation();
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: 'welcome',
+      role: 'assistant',
+      content: t('chat.welcome')
+    }
+  ]);
+  const [input, setInput] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim() || isTyping) return;
+
+    const userMsg = input.trim();
+    setInput('');
+    const newMessages: Message[] = [...messages, { id: Date.now().toString(), role: 'user', content: userMsg }];
+    setMessages(newMessages);
+    setIsTyping(true);
+
+    try {
+      if (!apiKey) {
+        throw new Error(t('chat.errorMissingKey'));
+      }
+      
+      const ai = new GoogleGenAI({ apiKey });
+      
+      const systemPrompt = `You are an expert DevOps and Systems Administrator AI assistant. You have context of the user's current SSH terminal session.
+If the user asks for a command, provide it clearly.
+Format your responses using Markdown. Use \`code\` blocks for commands.
+Current Terminal Context (last output lines):
+\`\`\`
+${terminalContext || "No terminal context available yet."}
+\`\`\``;
+
+      // Keep recent conversation history
+      const contents = newMessages.slice(-6).map(msg => ({
+        role: msg.role === 'user' ? 'user' : 'model',
+        parts: [{ text: msg.content }]
+      }));
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [
+          { role: 'user', parts: [{ text: systemPrompt }] },
+          ...contents
+        ],
+      });
+
+      setMessages([
+        ...newMessages, 
+        { 
+          id: Date.now().toString(), 
+          role: 'assistant', 
+          content: response.text || "Sorry, I couldn't generate a response." 
+        }
+      ]);
+    } catch (error: any) {
+      console.error(error);
+      setMessages([
+        ...newMessages, 
+        { 
+          id: Date.now().toString(), 
+          role: 'assistant', 
+          content: `**Error:** ${error.message}` 
+        }
+      ]);
+    } finally {
+      setIsTyping(false);
+    }
+  };
+
+  const copyCommand = (cmd: string) => {
+    navigator.clipboard.writeText(cmd);
+    // Could add toast notification here
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-transparent">
+      <div className="p-4 border-b border-zinc-800 flex items-center justify-between shrink-0">
+        <h2 className="text-xs font-bold uppercase tracking-widest text-indigo-400 flex items-center gap-2">
+          <Bot className="w-4 h-4" />
+          {t('chat.aiAssistant')}
+        </h2>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {messages.map(msg => (
+          <div key={msg.id} className={cn("flex gap-3", msg.role === 'user' ? "flex-row-reverse" : "")}>
+            <div className={cn(
+              "w-8 h-8 rounded-full flex items-center justify-center shrink-0", 
+              msg.role === 'user' ? "bg-zinc-800" : "bg-indigo-500/20 text-indigo-400"
+            )}>
+              {msg.role === 'user' ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
+            </div>
+            <div className={cn(
+              "max-w-[85%] rounded-lg p-3 text-sm",
+              msg.role === 'user' 
+                ? "bg-zinc-800 text-zinc-100" 
+                : "bg-zinc-900 border border-zinc-800 text-zinc-300"
+            )}>
+              {msg.role === 'user' ? (
+                <div className="whitespace-pre-wrap">{msg.content}</div>
+              ) : (
+                <div className="prose prose-invert prose-sm max-w-none 
+                  prose-p:leading-relaxed prose-pre:bg-black/50 prose-pre:border prose-pre:border-zinc-800
+                  prose-code:text-indigo-400 prose-code:bg-indigo-400/10 prose-code:px-1 prose-code:py-0.5 prose-code:rounded">
+                  <Markdown
+                    components={{
+                      code({node, inline, className, children, ...props}: any) {
+                        const match = /language-(\w+)/.exec(className || '')
+                        return !inline && match ? (
+                          <div className="relative group mt-2 mb-4">
+                            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                              {onExecuteCommand && (
+                                <button
+                                  onClick={() => onExecuteCommand(String(children).replace(/\n$/, ''))}
+                                  className="bg-indigo-600 hover:bg-indigo-500 text-white p-1.5 rounded-md text-xs flex items-center gap-1"
+                                >
+                                  <Play className="w-3 h-3" />
+                                  {t('chat.run')}
+                                </button>
+                              )}
+                              <button
+                                onClick={() => copyCommand(String(children).replace(/\n$/, ''))}
+                                className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 p-1.5 rounded-md text-xs flex items-center gap-1"
+                              >
+                                <Command className="w-3 h-3" />
+                                {t('chat.copy')}
+                              </button>
+                            </div>
+                            <pre className={className} {...props}>
+                              <code className={className} {...props}>
+                                {children}
+                              </code>
+                            </pre>
+                          </div>
+                        ) : (
+                          <code className={className} {...props}>
+                            {children}
+                          </code>
+                        )
+                      }
+                    }}
+                  >
+                    {msg.content}
+                  </Markdown>
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+        {isTyping && (
+          <div className="flex gap-3">
+            <div className="w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
+              <Bot className="w-4 h-4" />
+            </div>
+            <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-sm flex items-center gap-1">
+              <span className="w-1.5 h-1.5 bg-zinc-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+              <span className="w-1.5 h-1.5 bg-zinc-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+              <span className="w-1.5 h-1.5 bg-zinc-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+            </div>
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      <form onSubmit={handleSubmit} className="p-4 border-t border-zinc-800 bg-transparent shrink-0">
+        <div className="h-12 bg-zinc-900 border border-zinc-700 rounded-lg flex items-center px-4 gap-3 focus-within:border-indigo-500/50 focus-within:ring-1 focus-within:ring-indigo-500/50 transition-all">
+          <span className="text-indigo-400 font-bold text-xs uppercase tracking-widest hidden sm:inline">{t('chat.aiCmd')}</span>
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder={t('chat.askAi')}
+            className="bg-transparent flex-1 outline-none text-zinc-200 text-xs h-full"
+          />
+          <div className="flex gap-1 shrink-0">
+            <button
+              type="submit"
+              disabled={!input.trim() || isTyping}
+              className="px-1.5 py-0.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-zinc-800 disabled:text-zinc-500 text-white border border-transparent disabled:border-zinc-700 rounded text-[9px] transition-colors font-bold uppercase tracking-widest"
+            >
+              {t('chat.send')}
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  );
+}
