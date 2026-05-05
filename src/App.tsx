@@ -1,11 +1,15 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { TerminalSquare, MessageSquare, Save, Settings, Plus, Play, Tag, Edit, Trash, X, Bot, Globe } from 'lucide-react';
+import { TerminalSquare, MessageSquare, Save, Settings, Plus, Play, Tag, Edit, Trash, X, Bot, Globe, LogOut, Users } from 'lucide-react';
 import { cn } from './lib/utils';
 import TerminalComponent, { TerminalRef } from './components/TerminalComponent';
 import AIChatComponent from './components/AIChatComponent';
 import SessionForm from './components/SessionForm';
+import SettingsModal, { AISettings } from './components/SettingsModal';
+import AuthPage from './components/AuthPage';
+import AdminModal from './components/AdminModal';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from './contexts/AuthContext';
 
 export interface Session {
   id: string;
@@ -23,32 +27,95 @@ export interface Session {
 
 export default function App() {
   const { t, i18n } = useTranslation();
-  const [sessions, setSessions] = useState<Session[]>(() => {
-    const saved = localStorage.getItem('ai-ssh-sessions');
-    return saved ? JSON.parse(saved) : [];
+  const { user, token, logout, isLoading } = useAuth();
+  
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [aiSettings, setAiSettings] = useState<AISettings>(() => {
+    const saved = localStorage.getItem('ai-ssh-settings');
+    return saved ? JSON.parse(saved) : { provider: 'gemini', apiKey: '', baseUrl: '', model: 'gemini-2.5-pro' };
   });
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [activeSession, setActiveSession] = useState<Session | null>(null);
   const [isEditingSession, setIsEditingSession] = useState<Session | Partial<Session> | null>(null);
   const [terminalContext, setTerminalContext] = useState<string>('');
   const terminalRef = useRef<TerminalRef>(null);
 
-  useEffect(() => {
-    localStorage.setItem('ai-ssh-sessions', JSON.stringify(sessions));
-  }, [sessions]);
-
-  const saveSession = (sessionData: Session) => {
-    if (sessions.find(s => s.id === sessionData.id)) {
-      setSessions(sessions.map(s => s.id === sessionData.id ? sessionData : s));
-    } else {
-      setSessions([...sessions, { ...sessionData, id: sessionData.id || uuidv4() }]);
+  const fetchSessions = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await fetch('/api/sessions', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSessions(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch sessions', err);
     }
-    setIsEditingSession(null);
+  }, [token]);
+
+  useEffect(() => {
+    fetchSessions();
+  }, [fetchSessions]);
+
+  useEffect(() => {
+    localStorage.setItem('ai-ssh-settings', JSON.stringify(aiSettings));
+  }, [aiSettings]);
+
+  const saveSession = async (sessionData: Session) => {
+    const isNew = !sessions.find(s => s.id === sessionData.id);
+    const id = sessionData.id || uuidv4();
+    const payload = { ...sessionData, id };
+
+    try {
+      const method = isNew ? 'POST' : 'PUT';
+      const endpoint = isNew ? '/api/sessions' : `/api/sessions/${id}`;
+      const res = await fetch(endpoint, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (res.ok) {
+        if (isNew) {
+          setSessions([...sessions, payload]);
+        } else {
+          setSessions(sessions.map(s => s.id === id ? payload : s));
+        }
+        setIsEditingSession(null);
+      }
+    } catch (err) {
+      console.error('Failed to save session', err);
+    }
   };
 
-  const deleteSession = (id: string) => {
-    setSessions(sessions.filter(s => s.id !== id));
-    if (activeSession?.id === id) setActiveSession(null);
+  const deleteSession = async (id: string) => {
+    try {
+      const res = await fetch(`/api/sessions/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setSessions(sessions.filter(s => s.id !== id));
+        if (activeSession?.id === id) setActiveSession(null);
+      }
+    } catch (err) {
+      console.error('Failed to delete session', err);
+    }
   };
+
+  if (isLoading) {
+    return <div className="h-screen w-full bg-[#09090b] text-zinc-400 flex items-center justify-center font-mono">Loading...</div>;
+  }
+
+  if (!user) {
+    return <AuthPage />;
+  }
 
   return (
     <div className="flex h-screen w-full bg-[#09090b] text-zinc-400 font-sans p-4 gap-4 overflow-hidden">
@@ -69,6 +136,29 @@ export default function App() {
             title={i18n.language === 'en' ? t('app.langZh') : t('app.langEn')}
           >
             <Globe className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => setIsSettingsOpen(true)}
+            className="text-zinc-500 hover:text-zinc-300 ml-2"
+            title={t('app.settings')}
+          >
+            <Settings className="w-3.5 h-3.5" />
+          </button>
+          {user?.role === 'admin' && (
+            <button
+              onClick={() => setIsAdminOpen(true)}
+              className="text-zinc-500 hover:text-emerald-400 ml-2"
+              title={t('auth.adminDashboard')}
+            >
+              <Users className="w-3.5 h-3.5" />
+            </button>
+          )}
+          <button
+            onClick={logout}
+            className="text-zinc-500 hover:text-red-400 ml-2"
+            title={t('app.logout')}
+          >
+            <LogOut className="w-3.5 h-3.5" />
           </button>
         </div>
         
@@ -195,6 +285,7 @@ export default function App() {
             <AIChatComponent 
               terminalContext={terminalContext} 
               onExecuteCommand={(cmd) => terminalRef.current?.executeCommand(cmd)}
+              aiSettings={aiSettings}
             />
           </div>
         </aside>
@@ -218,6 +309,19 @@ export default function App() {
           onClose={() => setIsEditingSession(null)} 
         />
       )}
+
+      {isSettingsOpen && (
+        <SettingsModal
+          settings={aiSettings}
+          onSave={(newSettings) => {
+            setAiSettings(newSettings);
+            setIsSettingsOpen(false);
+          }}
+          onClose={() => setIsSettingsOpen(false)}
+        />
+      )}
+
+      {isAdminOpen && <AdminModal onClose={() => setIsAdminOpen(false)} />}
     </div>
   );
 }

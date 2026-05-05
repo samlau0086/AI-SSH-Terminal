@@ -6,6 +6,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
 import fs from "fs";
+import { initDb, createApiRouter } from "./api.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -14,6 +15,8 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
   const httpServer = createServer(app);
+  
+  const db = await initDb();
   
   const io = new Server(httpServer, {
     cors: {
@@ -27,6 +30,8 @@ async function startServer() {
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
   });
+  
+  app.use("/api", createApiRouter(db));
 
   io.on("connection", (socket) => {
     let sshClient: Client | null = null;

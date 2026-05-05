@@ -1,13 +1,16 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Command, ArrowRight, Play } from 'lucide-react';
+import { Send, Bot, User, Command, ArrowRight, Play, Rocket, Activity } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
+import OpenAI from "openai";
 import { cn } from '../lib/utils';
 import Markdown from 'react-markdown';
 import { useTranslation } from 'react-i18next';
+import type { AISettings } from './SettingsModal';
 
 interface Props {
   terminalContext: string;
   onExecuteCommand?: (cmd: string) => void;
+  aiSettings: AISettings;
 }
 
 interface Message {
@@ -16,10 +19,10 @@ interface Message {
   content: string;
 }
 
-// Since process.env is injected by Vite manually:
-const apiKey = process.env.GEMINI_API_KEY;
+// Global default AI
+const globalGeminiApiKey = process.env.GEMINI_API_KEY;
 
-export default function AIChatComponent({ terminalContext, onExecuteCommand }: Props) {
+export default function AIChatComponent({ terminalContext, onExecuteCommand, aiSettings }: Props) {
   const { t } = useTranslation();
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -40,23 +43,15 @@ export default function AIChatComponent({ terminalContext, onExecuteCommand }: P
     scrollToBottom();
   }, [messages]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isTyping) return;
+  const sendPrompt = async (text: string) => {
+    if (!text.trim() || isTyping) return;
 
-    const userMsg = input.trim();
-    setInput('');
+    const userMsg = text.trim();
     const newMessages: Message[] = [...messages, { id: Date.now().toString(), role: 'user', content: userMsg }];
     setMessages(newMessages);
     setIsTyping(true);
 
     try {
-      if (!apiKey) {
-        throw new Error(t('chat.errorMissingKey'));
-      }
-      
-      const ai = new GoogleGenAI({ apiKey });
-      
       const systemPrompt = `You are an expert DevOps and Systems Administrator AI assistant. You have context of the user's current SSH terminal session.
 If the user asks for a command, provide it clearly.
 Format your responses using Markdown. Use \`code\` blocks for commands.
@@ -65,26 +60,63 @@ Current Terminal Context (last output lines):
 ${terminalContext || "No terminal context available yet."}
 \`\`\``;
 
-      // Keep recent conversation history
-      const contents = newMessages.slice(-6).map(msg => ({
-        role: msg.role === 'user' ? 'user' : 'model',
-        parts: [{ text: msg.content }]
-      }));
+      let aiResponseText = "";
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: [
-          { role: 'user', parts: [{ text: systemPrompt }] },
-          ...contents
-        ],
-      });
+      if (aiSettings.provider === 'openai') {
+        const oaiApiKey = aiSettings.apiKey;
+        if (!oaiApiKey) throw new Error("API Key for OpenAI/Custom is missing.");
+        
+        const client = new OpenAI({
+          apiKey: oaiApiKey,
+          baseURL: aiSettings.baseUrl || undefined,
+          dangerouslyAllowBrowser: true // This is needed to run OpenAI from the browser side
+        });
+
+        const oaiMessages: any[] = [
+          { role: 'system', content: systemPrompt },
+          ...newMessages.slice(-6).map(msg => ({
+            role: msg.role === 'user' ? 'user' : 'assistant',
+            content: msg.content
+          }))
+        ];
+
+        const completion = await client.chat.completions.create({
+          messages: oaiMessages,
+          model: aiSettings.model || 'gpt-4o',
+        });
+
+        aiResponseText = completion.choices[0]?.message?.content || "No response generated.";
+      } else {
+        // Gemini
+        const geminiApiKey = aiSettings.apiKey || globalGeminiApiKey;
+        if (!geminiApiKey) {
+          throw new Error(t('chat.errorMissingKey'));
+        }
+        
+        const ai = new GoogleGenAI({ apiKey: geminiApiKey });
+        
+        const contents = newMessages.slice(-6).map(msg => ({
+          role: msg.role === 'user' ? 'user' : 'model',
+          parts: [{ text: msg.content }]
+        }));
+
+        const response = await ai.models.generateContent({
+          model: aiSettings.model || 'gemini-2.5-pro',
+          contents: [
+            { role: 'user', parts: [{ text: systemPrompt }] },
+            ...contents
+          ],
+        });
+
+        aiResponseText = response.text || "Sorry, I couldn't generate a response.";
+      }
 
       setMessages([
         ...newMessages, 
         { 
           id: Date.now().toString(), 
           role: 'assistant', 
-          content: response.text || "Sorry, I couldn't generate a response." 
+          content: aiResponseText
         }
       ]);
     } catch (error: any) {
@@ -99,6 +131,15 @@ ${terminalContext || "No terminal context available yet."}
       ]);
     } finally {
       setIsTyping(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (input.trim()) {
+      const text = input;
+      setInput('');
+      await sendPrompt(text);
     }
   };
 
@@ -197,7 +238,27 @@ ${terminalContext || "No terminal context available yet."}
         <div ref={messagesEndRef} />
       </div>
 
-      <form onSubmit={handleSubmit} className="p-4 border-t border-zinc-800 bg-transparent shrink-0">
+      <form onSubmit={handleSubmit} className="p-4 border-t border-zinc-800 bg-[#18181b] flex flex-col shrink-0">
+        {messages.length <= 3 && (
+          <div className="flex gap-2 overflow-x-auto pb-3 custom-scrollbar">
+            <button
+              type="button"
+              onClick={() => sendPrompt(t('chat.qaDeployGithubPrompt'))}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-800 hover:bg-zinc-700 text-[10px] sm:text-xs text-zinc-300 font-medium tracking-wide transition-colors whitespace-nowrap shrink-0"
+            >
+              <Rocket className="w-3.5 h-3.5 text-indigo-400" />
+              {t('chat.qaDeployGithub')}
+            </button>
+            <button
+              type="button"
+              onClick={() => sendPrompt(t('chat.qaCheckSystemPrompt'))}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-800 hover:bg-zinc-700 text-[10px] sm:text-xs text-zinc-300 font-medium tracking-wide transition-colors whitespace-nowrap shrink-0"
+            >
+              <Activity className="w-3.5 h-3.5 text-emerald-400" />
+              {t('chat.qaCheckSystem')}
+            </button>
+          </div>
+        )}
         <div className="h-12 bg-zinc-900 border border-zinc-700 rounded-lg flex items-center px-4 gap-3 focus-within:border-indigo-500/50 focus-within:ring-1 focus-within:ring-indigo-500/50 transition-all">
           <span className="text-indigo-400 font-bold text-xs uppercase tracking-widest hidden sm:inline">{t('chat.aiCmd')}</span>
           <input

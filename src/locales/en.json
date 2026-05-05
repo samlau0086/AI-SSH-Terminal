@@ -12,7 +12,35 @@
     "standbyMode": "Standby mode",
     "connectToChat": "Connect to a session to chat with the AI Assistant",
     "langEn": "English",
-    "langZh": "中文"
+    "langZh": "中文",
+    "settings": "Settings",
+    "logout": "Logout"
+  },
+  "auth": {
+    "login": "Login",
+    "register": "Register",
+    "username": "Username",
+    "password": "Password",
+    "submit": "Submit",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?",
+    "adminDashboard": "Admin Dashboard",
+    "error": "Authentication failed"
+  },
+  "settings": {
+    "title": "Settings",
+    "aiProvider": "AI Provider",
+    "providerGemini": "Google Gemini",
+    "providerOpenAI": "OpenAI / Custom",
+    "apiKey": "API Key",
+    "apiKeyPlaceholder": "Enter API Key",
+    "baseUrl": "Base URL (Optional)",
+    "baseUrlPlaceholder": "e.g., https://api.openai.com/v1",
+    "model": "Model ID",
+    "modelPlaceholder": "e.g., gpt-4o or gemini-2.5-pro",
+    "save": "Save Changes",
+    "cancel": "Cancel",
+    "description": "Configure your AI provider credentials. API keys are stored locally in your browser."
   },
   "sessionForm": {
     "newSession": "New Session",
@@ -41,7 +69,12 @@
     "askAi": "Ask AI for help or commands...",
     "send": "SEND",
     "errorMissingKey": "GEMINI_API_KEY is missing. Please configure it in your secrets.",
-    "errorGeneral": "Error"
+    "errorGeneral": "Error",
+    "quickActions": "Quick Actions",
+    "qaDeployGithub": "Deploy GitHub Repo",
+    "qaDeployGithubPrompt": "I need to automatically deploy my GitHub repository to this Linux VPS. Please provide a robust set of commands to: 1. Install Git if not present. 2. Clone/pull the latest code. 3. Set up the environment (e.g., Docker, Node.js). Guide me through the process.",
+    "qaCheckSystem": "System Status",
+    "qaCheckSystemPrompt": "Please check the system status (CPU, Memory, Disk space) and provide a health summary."
   },
   "terminal": {
     "connecting": "Connecting to {{host}}...",

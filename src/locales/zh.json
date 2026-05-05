@@ -12,7 +12,35 @@
     "standbyMode": "待机模式",
     "connectToChat": "连接会话后即可与AI助手对话",
     "langEn": "English",
-    "langZh": "中文"
+    "langZh": "中文",
+    "settings": "设置",
+    "logout": "退出登录"
+  },
+  "auth": {
+    "login": "登录",
+    "register": "注册",
+    "username": "用户名",
+    "password": "密码",
+    "submit": "提交",
+    "noAccount": "没有账户？去注册",
+    "hasAccount": "已有账户？去登录",
+    "adminDashboard": "管理员面板",
+    "error": "验证失败"
+  },
+  "settings": {
+    "title": "设置",
+    "aiProvider": "AI 提供商",
+    "providerGemini": "Google Gemini",
+    "providerOpenAI": "OpenAI / 自定义代理",
+    "apiKey": "API 密钥",
+    "apiKeyPlaceholder": "输入 API 密钥",
+    "baseUrl": "API 基础地址 (可选)",
+    "baseUrlPlaceholder": "例如: https://api.openai.com/v1",
+    "model": "模型名称",
+    "modelPlaceholder": "例如: gpt-4o 或 gemini-2.5-pro",
+    "save": "保存更改",
+    "cancel": "取消",
+    "description": "配置您的 AI 提供商信息。API密钥将安全地保存在您浏览器的本地存储中。"
   },
   "sessionForm": {
     "newSession": "新建会话",
@@ -41,7 +69,12 @@
     "askAi": "向AI寻求帮助或命令...",
     "send": "发送",
     "errorMissingKey": "缺少 GEMINI_API_KEY。请在你的secrets中配置它。",
-    "errorGeneral": "错误"
+    "errorGeneral": "错误",
+    "quickActions": "快捷指令",
+    "qaDeployGithub": "部署 GitHub 仓库",
+    "qaDeployGithubPrompt": "我需要自动化部署我的 GitHub 仓库到这台 Linux VPS 上。请提供一系列命令：1. 如果没有 Git 则安装它。2. 克隆/拉取最新代码。3. 配置运行环境（如 Docker, Node.js 等）。请一步一步指导我。",
+    "qaCheckSystem": "系统状态",
+    "qaCheckSystemPrompt": "请帮我检查系统状态（CPU、内存、磁盘空间），并给出一个健康状态摘要。"
   },
   "terminal": {
     "connecting": "正在连接到 {{host}}...",

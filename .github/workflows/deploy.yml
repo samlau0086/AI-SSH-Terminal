@@ -1,0 +1,61 @@
+name: Deploy AI-SSH to VPS
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  # 允许手动触发工作流
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: \ud83d\udce6 获取代码 (Checkout)
+        uses: actions/checkout@v4
+
+      - name: \ud83d\udfe2 设置 Node.js 环境
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: \ud83d\udce6 安装项目依赖 (Install dependencies)
+        run: npm ci
+
+      - name: \ud83d\udee0\ufe0f 构建项目 (Build project)
+        run: npm run build
+
+      - name: \ud83d\ude80 部署文件到 VPS (Copy files via SCP)
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || '22' }}
+          source: "dist,package.json,package-lock.json"
+          target: ${{ secrets.VPS_TARGET_DIR }}
+          strip_components: 0
+
+      - name: \ud83d\udd04 在 VPS 上重启服务 (Restart application)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || '22' }}
+          script: |
+            cd ${{ secrets.VPS_TARGET_DIR }}
+            
+            # 安装生产环境依赖
+            npm install --production
+            
+            # 确保安装了 pm2 进行进程管理
+            npm install -g pm2
+            
+            # 停止并重新启动服务，注入必要的环境变量
+            pm2 stop ai-ssh-terminal || true
+            GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}" pm2 start dist/server.cjs --name "ai-ssh-terminal"
+            pm2 save
