@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { Play, Plus, Edit, Trash, Zap, X, CheckSquare, Square } from 'lucide-react';
+import { Play, Plus, Edit, Trash, Zap, X, CheckSquare, Square, ChevronDown, Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { cn } from '../lib/utils';
@@ -27,6 +27,20 @@ export default function QuickCommands({ onExecuteActive, checkedSessionIds, sess
   const [executionResults, setExecutionResults] = useState<{ sessionId: string; output: string; error?: string; code?: number }[]>([]);
   const [isExecuting, setIsExecuting] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     fetchCommands();
@@ -129,48 +143,89 @@ export default function QuickCommands({ onExecuteActive, checkedSessionIds, sess
   };
 
   return (
-    <div className="bg-[#18181b] border-t border-zinc-800 p-3 shrink-0 flex flex-col gap-2">
+    <div className="bg-[#18181b] border-t border-zinc-800 p-3 shrink-0 flex flex-col gap-2 relative">
       <div className="flex items-center justify-between">
         <h3 className="text-[10px] uppercase tracking-widest font-bold text-zinc-500 flex items-center gap-1.5">
           <Zap className="w-3 h-3 text-amber-400" />
           Quick Commands
         </h3>
-        <button 
-          onClick={() => setIsEditing({ name: '', command: '' })}
-          className="text-zinc-500 hover:text-zinc-300 transition-colors"
-        >
-          <Plus className="w-3.5 h-3.5" />
-        </button>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-1">
-        {commands.map(cmd => (
-          <div 
-            key={cmd.id} 
-            className="flex items-center gap-1 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700/50 rounded-md px-2 py-1 shrink-0 group cursor-pointer transition-colors"
-            onClick={() => executeCommand(cmd)}
-            title={cmd.command}
+      <div className="flex items-center gap-2" ref={dropdownRef}>
+        <div className="relative flex-1">
+          <button
+            type="button"
+            className="w-full bg-[#09090b] border border-zinc-800 text-zinc-300 text-xs rounded-md px-3 py-1.5 flex items-center justify-between hover:border-zinc-700 transition-colors"
+            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
           >
-            <span className="text-xs text-zinc-300 font-medium">{cmd.name}</span>
-            <div className="flex items-center ml-2 border-l border-zinc-700 pl-1 -mr-1">
-              <button
-                onClick={(e) => { e.stopPropagation(); setIsEditing(cmd); }}
-                className="p-1 opacity-0 group-hover:opacity-100 transition-opacity text-zinc-500 hover:text-zinc-300"
-              >
-                <Edit className="w-3 h-3" />
-              </button>
-              <button
-                onClick={(e) => deleteCommand(cmd.id, e)}
-                className="p-1 opacity-0 group-hover:opacity-100 transition-opacity text-zinc-500 hover:text-red-400"
-              >
-                <Trash className="w-3 h-3" />
-              </button>
+            <span className="flex items-center gap-1.5 font-medium truncate">
+              Select or Search Command...
+            </span>
+            <ChevronDown className={cn("w-3.5 h-3.5 text-zinc-500 transition-transform shrink-0", isDropdownOpen && "rotate-180")} />
+          </button>
+          
+          {isDropdownOpen && (
+            <div className="absolute bottom-[calc(100%+4px)] left-0 w-full sm:w-[350px] bg-[#18181b] border border-zinc-700/80 rounded-lg shadow-2xl overflow-hidden flex flex-col z-[100]">
+              <div className="p-2 border-b border-zinc-800/80 flex items-center gap-2 bg-[#09090b]/50">
+                <Search className="w-4 h-4 text-zinc-500 shrink-0 ml-1" />
+                <input 
+                  type="text" 
+                  autoFocus
+                  placeholder="Search commands..." 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="bg-transparent border-none text-sm text-zinc-200 focus:outline-none w-full placeholder:text-zinc-600"
+                />
+              </div>
+              <div className="max-h-[300px] overflow-y-auto custom-scrollbar p-1.5">
+                {commands.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()) || c.command.toLowerCase().includes(searchQuery.toLowerCase())).map(cmd => (
+                  <div 
+                    key={cmd.id} 
+                    className="flex flex-col gap-0.5 hover:bg-zinc-800/80 rounded-md px-2.5 py-2 group cursor-pointer transition-colors"
+                    onClick={() => {
+                        executeCommand(cmd);
+                        setIsDropdownOpen(false);
+                    }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-zinc-200 font-medium truncate pr-4">{cmd.name}</span>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setIsEditing(cmd); setIsDropdownOpen(false); }}
+                          className="p-1.5 text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded transition-colors shadow-sm"
+                          title="Edit"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={(e) => deleteCommand(cmd.id, e)}
+                          className="p-1.5 text-zinc-400 hover:text-red-400 bg-zinc-800 hover:bg-zinc-700 rounded transition-colors shadow-sm"
+                          title="Delete"
+                        >
+                          <Trash className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                    <span className="text-[11px] text-zinc-500 font-mono truncate block w-full opacity-80">{cmd.command}</span>
+                  </div>
+                ))}
+                {commands.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()) || c.command.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
+                  <div className="px-3 py-6 text-center text-xs text-zinc-500 italic">
+                    {commands.length === 0 ? "No quick commands added." : "No matching commands found."}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
-        {commands.length === 0 && (
-          <span className="text-xs text-zinc-600 italic">No quick commands added yet.</span>
-        )}
+          )}
+        </div>
+        
+        <button 
+          onClick={() => setIsEditing({ name: '', command: '' })}
+          className="text-zinc-400 bg-zinc-800/50 hover:bg-zinc-800 hover:text-zinc-200 transition-colors border border-zinc-800 rounded-md px-2.5 py-1.5 flex items-center justify-center shrink-0"
+          title="Add Quick Command"
+        >
+          <Plus className="w-4 h-4" />
+        </button>
       </div>
 
       {isEditing && (
