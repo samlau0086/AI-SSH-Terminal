@@ -16,6 +16,7 @@ interface QuickCommandsProps {
   onExecuteActive: (command: string) => void;
   checkedSessionIds: string[];
   sessions: Session[];
+  hasActiveSession?: boolean;
 }
 
 export default function QuickCommands({ onExecuteActive, checkedSessionIds, sessions }: QuickCommandsProps) {
@@ -23,7 +24,7 @@ export default function QuickCommands({ onExecuteActive, checkedSessionIds, sess
   const { token } = useAuth();
   const [commands, setCommands] = useState<QuickCommand[]>([]);
   const [isEditing, setIsEditing] = useState<QuickCommand | Partial<QuickCommand> | null>(null);
-  const [executionResults, setExecutionResults] = useState<{ sessionId: string; output: string; error?: string }[]>([]);
+  const [executionResults, setExecutionResults] = useState<{ sessionId: string; output: string; error?: string; code?: number }[]>([]);
   const [isExecuting, setIsExecuting] = useState(false);
   const [showResults, setShowResults] = useState(false);
 
