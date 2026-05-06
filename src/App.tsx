@@ -16,22 +16,6 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from './contexts/AuthContext';
 import { Group as PanelGroup, Panel, Separator as PanelResizeHandle } from "react-resizable-panels";
 
-const ResizeHandle = ({ direction = 'horizontal' }: { direction?: 'horizontal' | 'vertical' }) => (
-  <PanelResizeHandle 
-    className={cn(
-      "relative flex justify-center items-center group transition-all z-10",
-      direction === 'horizontal' ? "w-2 hover:w-3 cursor-col-resize px-0.5" : "h-2 hover:h-3 cursor-row-resize py-0.5"
-    )}
-  >
-    <div 
-      className={cn(
-        "bg-zinc-800/30 rounded-full group-hover:bg-indigo-500/50 transition-all",
-        direction === 'horizontal' ? "w-1 h-12 group-hover:h-16" : "h-1 w-12 group-hover:w-16"
-      )} 
-    />
-  </PanelResizeHandle>
-);
-
 export interface Session {
   id: string;
   name: string;
@@ -247,11 +231,11 @@ export default function App() {
   }
 
   return (
-    <div className="h-screen w-full bg-[#09090b] text-zinc-400 font-sans p-0 overflow-hidden">
-      <PanelGroup orientation="horizontal" id="horizontal-main-layout" className="h-full w-full">
+    <div className="h-screen w-full bg-[#09090b] text-zinc-400 font-sans overflow-hidden flex">
+      <PanelGroup orientation="horizontal" id="horizontal-main-layout" className="flex-1">
         {/* Left Sidebar: Sessions */}
-        <Panel id="sidebar-left" defaultSize={22} minSize={15} maxSize={40} collapsible>
-          <aside className="w-full h-full flex flex-col gap-3 p-2">
+        <Panel id="sidebar-left" defaultSize={25} minSize={20} maxSize={40} collapsible>
+          <aside className="h-full flex flex-col gap-3 p-3 bg-[#18181b]/50 border-r border-zinc-800">
             <div className="h-12 bg-[#18181b] border border-zinc-800 rounded-xl flex items-center px-4 gap-3 shrink-0">
               <div className="w-3 h-3 rounded-full bg-red-500"></div>
               <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
@@ -440,11 +424,11 @@ export default function App() {
           </aside>
         </Panel>
 
-        <ResizeHandle direction="horizontal" />
+        <PanelResizeHandle className="w-1 bg-[#18181b] hover:bg-indigo-500/50 transition-colors cursor-col-resize z-50" />
 
         {/* Main Content Area */}
-        <Panel id="main-content" defaultSize={53} minSize={30}>
-          <main className="h-full w-full flex flex-col p-2 min-w-0">
+        <Panel id="main-content" defaultSize={50} minSize={30}>
+          <main className="h-full w-full flex flex-col p-3 min-w-0 bg-[#09090b]">
             {tabs.length > 0 ? (
               <PanelGroup orientation="vertical" id="vertical-content-layout" className="h-full w-full">
                 <Panel id="terminal-panel" defaultSize={70} minSize={20} className="flex flex-col gap-4">
@@ -497,10 +481,10 @@ export default function App() {
                   </div>
                 </Panel>
 
-                <ResizeHandle direction="vertical" />
+                <PanelResizeHandle className="h-1 bg-[#18181b] hover:bg-indigo-500/50 transition-colors cursor-row-resize z-50" />
                 
                 {/* Session Info Panel (CPU/Memory/Upload) */}
-                <Panel id="info-panel" defaultSize={30} minSize={10} collapsible className="overflow-hidden shadow-xl rounded-xl border border-zinc-800">
+                <Panel id="info-panel" defaultSize={25} minSize={10} collapsible className="overflow-hidden shadow-xl border-t border-zinc-800 bg-[#18181b]/30">
                   <div className="h-full w-full overflow-hidden flex flex-col pt-1">
                      <SessionInfoPanel session={activeSession!} />
                   </div>
@@ -518,12 +502,12 @@ export default function App() {
           </main>
         </Panel>
 
-        <ResizeHandle direction="horizontal" />
+        <PanelResizeHandle className="w-1 bg-[#18181b] hover:bg-indigo-500/50 transition-colors cursor-col-resize z-50" />
 
         {/* Right Sidebar: AI Chat */}
-        <Panel id="sidebar-right" defaultSize={25} minSize={15} maxSize={40} collapsible>
+        <Panel id="sidebar-right" defaultSize={25} minSize={20} maxSize={40} collapsible>
           {tabs.length > 0 ? (
-            <aside className="w-full h-full flex flex-col gap-4 p-2">
+            <aside className="w-full h-full flex flex-col gap-4 p-3 bg-[#18181b]/50 border-l border-zinc-800">
               <div className="flex-1 bg-[#18181b] border border-zinc-800 rounded-xl flex flex-col overflow-hidden max-h-full">
                 <AIChatComponent 
                   terminalContext={activeTabId ? terminalContexts[activeTabId] || '' : ''} 
@@ -537,7 +521,7 @@ export default function App() {
               </div>
             </aside>
           ) : (
-            <aside className="w-full h-full flex flex-col gap-4 p-2">
+            <aside className="w-full h-full flex flex-col gap-4 p-3 bg-[#18181b]/50 border-l border-zinc-800">
                <div className="h-48 bg-[#18181b] border border-zinc-800 rounded-xl p-4 flex flex-col opacity-50">
                  <h2 className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-2">{t('app.workspace')}</h2>
                  <div className="flex-1 flex items-center justify-center text-sm text-zinc-600 font-mono">{t('app.standbyMode')}</div>
