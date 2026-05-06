@@ -273,14 +273,27 @@ export function createApiRouter(db: any) {
                    return res.status(500).json({ error: err.message });
                }
                
-               // transfer file
-               sftp.fastPut(file.path, targetPath, (putErr) => {
-                   sshClient.end();
-                   fs.unlink(file.path, () => {}); // clean up local temp file
-                   if (putErr) {
-                       return res.status(500).json({ error: putErr.message });
+               const resolvePath = (p: string, cb: (resolved: string) => void) => {
+                   if (p.startsWith('~/') || p === '~') {
+                       sftp.realpath('.', (rErr, homePath) => {
+                           if (rErr) cb(p);
+                           else cb(p.replace(/^~/, homePath));
+                       });
+                   } else {
+                       cb(p);
                    }
-                   res.json({ success: true, message: `File uploaded to ${targetPath}` });
+               };
+
+               resolvePath(targetPath, (actualPath) => {
+                   // transfer file
+                   sftp.fastPut(file.path, actualPath, (putErr) => {
+                       sshClient.end();
+                       fs.unlink(file.path, () => {}); // clean up local temp file
+                       if (putErr) {
+                           return res.status(500).json({ error: putErr.message });
+                       }
+                       res.json({ success: true, message: `File uploaded to ${actualPath}` });
+                   });
                });
            });
        }).on('error', (err) => {
@@ -367,12 +380,26 @@ export function createApiRouter(db: any) {
                    sshClient.end();
                    return res.status(500).json({ error: err.message });
                }
-               sftp.readdir(dirPath, (readErr, list) => {
-                   sshClient.end();
-                   if (readErr) {
-                       return res.status(500).json({ error: readErr.message });
+               
+               const resolvePath = (p: string, cb: (resolved: string) => void) => {
+                   if (p.startsWith('~/') || p === '~') {
+                       sftp.realpath('.', (rErr, homePath) => {
+                           if (rErr) cb(p);
+                           else cb(p.replace(/^~/, homePath));
+                       });
+                   } else {
+                       cb(p);
                    }
-                   res.json({ files: list });
+               };
+
+               resolvePath(dirPath, (actualPath) => {
+                   sftp.readdir(actualPath, (readErr, list) => {
+                       sshClient.end();
+                       if (readErr) {
+                           return res.status(500).json({ error: readErr.message });
+                       }
+                       res.json({ files: list, currentPath: actualPath });
+                   });
                });
            });
        }).on('error', (err) => {
@@ -410,17 +437,30 @@ export function createApiRouter(db: any) {
                    sshClient.end();
                    return res.status(500).json({ error: err.message });
                }
+               
+               const resolvePath = (p: string, cb: (resolved: string) => void) => {
+                   if (p.startsWith('~/') || p === '~') {
+                       sftp.realpath('.', (rErr, homePath) => {
+                           if (rErr) cb(p);
+                           else cb(p.replace(/^~/, homePath));
+                       });
+                   } else {
+                       cb(p);
+                   }
+               };
 
-               const readStream = sftp.createReadStream(filePath);
-               readStream.on('error', (readErr) => {
-                   sshClient.end();
-                   if (!res.headersSent) res.status(500).json({ error: readErr.message });
-               });
+               resolvePath(filePath, (actualPath) => {
+                   const readStream = sftp.createReadStream(actualPath);
+                   readStream.on('error', (readErr) => {
+                       sshClient.end();
+                       if (!res.headersSent) res.status(500).json({ error: readErr.message });
+                   });
 
-               res.setHeader('Content-Disposition', `attachment; filename="${filePath.split('/').pop()}"`);
-               readStream.pipe(res);
-               readStream.on('end', () => {
-                   sshClient.end();
+                   res.setHeader('Content-Disposition', `attachment; filename="${actualPath.split('/').pop()}"`);
+                   readStream.pipe(res);
+                   readStream.on('end', () => {
+                       sshClient.end();
+                   });
                });
            });
        }).on('error', (err) => {

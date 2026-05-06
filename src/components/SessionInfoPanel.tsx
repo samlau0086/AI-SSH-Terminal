@@ -76,11 +76,16 @@ export default function SessionInfoPanel({ session }: Props) {
       const res = await fetch(`/api/sessions/${session.id}/files?path=${encodeURIComponent(dirPath)}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      const data = await res.json();
+      let data: any;
+      try {
+         data = await res.json();
+      } catch (e) {
+         throw new Error(`Invalid response from server (${res.status})`);
+      }
       if (res.ok) {
          setFiles(data.files || []);
-         setTargetPath(dirPath);
-         setInputPath(dirPath);
+         setTargetPath(data.currentPath || dirPath);
+         setInputPath(data.currentPath || dirPath);
       } else {
          setFileError(data.error || 'Failed to load files');
       }
@@ -121,7 +126,12 @@ export default function SessionInfoPanel({ session }: Props) {
         headers: { 'Authorization': `Bearer ${token}` },
         body: formData
       });
-      const data = await res.json();
+      let data: any;
+      try {
+         data = await res.json();
+      } catch (e) {
+         throw new Error(`Upload failed with server error (${res.status})`);
+      }
       if (res.ok) {
         setUploadStatus('success');
         setUploadMessage(data.message);
