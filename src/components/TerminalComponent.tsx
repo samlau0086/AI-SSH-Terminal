@@ -164,7 +164,7 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, onContextUp
         setErrorMsg(stat.message);
         xtermRef.current?.writeln(`\x1b[31m[SSH Error] ${stat.message}\x1b[0m`);
       } else if (stat.status === 'disconnected') {
-        setStatus('disconnected');
+        setStatus(prev => prev === 'error' ? 'error' : 'disconnected');
         xtermRef.current?.writeln(`\x1b[33m\r\n[SSH Disconnected]\x1b[0m`);
       }
     });
