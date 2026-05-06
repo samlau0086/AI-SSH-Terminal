@@ -85,6 +85,13 @@ ${terminalContext || "No terminal context available yet."}
           model: aiSettings.model || 'gpt-4o',
         });
 
+        if (!completion?.choices?.length) {
+          throw new Error(
+            "Invalid response from AI API: " + 
+            ((completion as any)?.error?.message || JSON.stringify(completion))
+          );
+        }
+
         aiResponseText = completion.choices[0]?.message?.content || "No response generated.";
       } else {
         // Gemini
