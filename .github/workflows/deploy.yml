@@ -53,12 +53,13 @@ jobs:
             npm install --omit=dev
             
             # 由于部分 VPS 环境使用较旧的 libc 系统，强制从源码重新编译 C++ 扩展包
-            npm rebuild sqlite3 cpu-features ssh2 --build-from-source || true
+            npm install sqlite3 --build-from-source || npm rebuild sqlite3 --build-from-source
+            npm rebuild cpu-features ssh2 --build-from-source || true
             
             # 确保安装了 pm2 进行进程管理
             npm install -g pm2
             
             # 停止并重新启动服务，注入必要的环境变量
             pm2 stop ai-ssh-terminal || true
-            APP_PORT=3020 GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}" pm2 start dist/server.js --name "ai-ssh-terminal"
+            NODE_ENV=production APP_PORT=3020 GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}" pm2 start dist/server.js --name "ai-ssh-terminal"
             pm2 save
