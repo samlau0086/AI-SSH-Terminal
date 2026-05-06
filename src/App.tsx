@@ -35,17 +35,21 @@ export default function App() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [aiSettings, setAiSettings] = useState<AISettings>(() => {
     const saved = localStorage.getItem('ai-ssh-settings');
-    return saved ? JSON.parse(saved) : { provider: 'gemini', apiKey: '', baseUrl: '', model: 'gemini-2.5-pro' };
+    const parsed = saved ? JSON.parse(saved) : { provider: 'gemini', apiKey: '', baseUrl: '', model: 'gemini-2.5-pro' };
+    if (!parsed.commandHistorySize) parsed.commandHistorySize = 200;
+    return parsed;
   });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [activeSession, setActiveSession] = useState<Session | null>(null);
+  const [tabs, setTabs] = useState<{id: string, session: Session}[]>([]);
+  const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [isEditingSession, setIsEditingSession] = useState<Session | Partial<Session> | null>(null);
-  const [terminalContext, setTerminalContext] = useState<string>('');
+  const [terminalContexts, setTerminalContexts] = useState<Record<string, string>>({});
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [checkedSessionIds, setCheckedSessionIds] = useState<string[]>([]);
-  const terminalRef = useRef<TerminalRef>(null);
+  const terminalRefs = useRef<Record<string, TerminalRef>>({});
 
   const fetchSessions = useCallback(async () => {
     if (!token) return;
@@ -100,6 +104,35 @@ export default function App() {
     }
   };
 
+  const openTab = (session: Session) => {
+    setActiveSession(session);
+    const newTabId = uuidv4();
+    setTabs(prev => [...prev, { id: newTabId, session }]);
+    setActiveTabId(newTabId);
+  };
+
+  const closeTab = (e: React.MouseEvent, tabId: string) => {
+    e.stopPropagation();
+    setTabs(prev => {
+      const newTabs = prev.filter(t => t.id !== tabId);
+      if (activeTabId === tabId) {
+        if (newTabs.length > 0) {
+          setActiveTabId(newTabs[newTabs.length - 1].id);
+          setActiveSession(newTabs[newTabs.length - 1].session);
+        } else {
+          setActiveTabId(null);
+          setActiveSession(null);
+        }
+      }
+      return newTabs;
+    });
+    setTerminalContexts(prev => {
+      const next = { ...prev };
+      delete next[tabId];
+      return next;
+    });
+  };
+
   const deleteSession = async (id: string) => {
     try {
       const res = await fetch(`/api/sessions/${id}`, {
@@ -108,7 +141,6 @@ export default function App() {
       });
       if (res.ok) {
         setSessions(sessions.filter(s => s.id !== id));
-        if (activeSession?.id === id) setActiveSession(null);
       }
     } catch (err) {
       console.error('Failed to delete session', err);
@@ -238,16 +270,14 @@ export default function App() {
                 <div 
                   key={session.id}
                   className={cn(
-                    "p-3 rounded-lg border transition-colors cursor-pointer group",
-                    activeSession?.id === session.id 
-                      ? "bg-zinc-800/50 border-zinc-700" 
-                      : "border-transparent hover:bg-zinc-800/30"
+                    "p-3 rounded-lg border transition-colors cursor-pointer group hover:bg-zinc-800/30",
+                     "border-transparent"
                   )}
-                  onClick={() => setActiveSession(session)}
+                  onClick={() => openTab(session)}
                 >
                   <div className="flex justify-between text-sm font-medium items-center">
                     <div className="flex items-center gap-2">
-                      <button 
+                       <button 
                          onClick={(e) => {
                            e.stopPropagation();
                            setCheckedSessionIds(prev => 
@@ -258,7 +288,7 @@ export default function App() {
                       >
                          {checkedSessionIds.includes(session.id) ? <CheckSquare className="w-3.5 h-3.5 text-indigo-400" /> : <Square className="w-3.5 h-3.5" />}
                       </button>
-                      <span className={activeSession?.id === session.id ? "text-zinc-200" : "text-zinc-400 group-hover:text-zinc-300"}>
+                      <span className="text-zinc-400 group-hover:text-zinc-300">
                         {session.name || session.host}
                       </span>
                     </div>
@@ -295,7 +325,11 @@ export default function App() {
           </div>
           
           <QuickCommands 
-            onExecuteActive={(cmd) => terminalRef.current?.executeCommand(cmd)} 
+            onExecuteActive={(cmd) => {
+              if (activeTabId && terminalRefs.current[activeTabId]) {
+                 terminalRefs.current[activeTabId].executeCommand(cmd);
+              }
+            }} 
             checkedSessionIds={checkedSessionIds}
             sessions={sessions}
             hasActiveSession={!!activeSession}
@@ -305,41 +339,59 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col gap-4 min-w-0">
-        {activeSession ? (
+        {tabs.length > 0 ? (
           <>
-            {/* Connection Bar */}
-            <div className="h-12 bg-[#18181b] border border-zinc-800 rounded-xl flex items-center px-6 gap-4 shrink-0">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span className="text-sm text-zinc-200 font-mono">{activeSession.username}@{activeSession.host}</span>
-              </div>
-              <div className="h-4 w-px bg-zinc-800 hidden sm:block"></div>
-              <div className="hidden sm:flex gap-2">
-                <span className="px-2 py-1 bg-zinc-800 text-[10px] rounded text-zinc-400 font-mono">{t('app.port')}: {activeSession.port}</span>
-                <span className="px-2 py-1 bg-zinc-800 text-[10px] rounded text-zinc-400 font-mono">{activeSession.authType}</span>
-              </div>
-              <div className="ml-auto flex items-center gap-2">
-                <button 
-                  onClick={() => setActiveSession(null)}
-                  className="text-zinc-500 hover:text-zinc-300 rounded-md transition-colors p-1"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
+            {/* Tabs Bar */}
+            <div className="h-10 bg-[#18181b] border border-zinc-800 rounded-xl flex items-center px-2 shrink-0 overflow-x-auto custom-scrollbar gap-1">
+               {tabs.map((tab) => (
+                 <div
+                   key={tab.id}
+                   onClick={() => {
+                     setActiveTabId(tab.id);
+                     setActiveSession(tab.session);
+                   }}
+                   className={cn(
+                     "px-4 py-1.5 rounded-lg text-xs font-mono font-bold uppercase tracking-widest flex items-center gap-2 cursor-pointer transition-colors whitespace-nowrap shrink-0",
+                     activeTabId === tab.id 
+                       ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30" 
+                       : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
+                   )}
+                 >
+                   <span className={cn("w-2 h-2 rounded-full", activeTabId === tab.id ? "bg-emerald-500" : "bg-zinc-600")}></span>
+                   {tab.session.name || tab.session.host}
+                   <button 
+                     onClick={(e) => closeTab(e, tab.id)}
+                     className="ml-2 hover:text-white p-0.5 rounded-md hover:bg-zinc-700/50"
+                   >
+                     <X className="w-3 h-3" />
+                   </button>
+                 </div>
+               ))}
             </div>
 
-            {/* Terminal Window */}
+            {/* Terminal Container */}
             <div className="flex-1 bg-black border border-zinc-800 rounded-xl p-4 font-mono text-sm overflow-hidden flex flex-col relative w-full h-full min-h-0">
-              <TerminalComponent 
-                ref={terminalRef}
-                session={activeSession} 
-                onContextUpdate={setTerminalContext}
-              />
+               {tabs.map((tab) => (
+                 <div 
+                   key={tab.id} 
+                   className={cn(
+                     "w-full h-full flex flex-col min-h-0",
+                     activeTabId === tab.id ? "flex" : "hidden"
+                   )}
+                 >
+                   <TerminalComponent 
+                     ref={el => { if (el) terminalRefs.current[tab.id] = el; }}
+                     session={tab.session} 
+                     onContextUpdate={ctx => setTerminalContexts(prev => ({...prev, [tab.id]: ctx}))}
+                     historySize={aiSettings.commandHistorySize}
+                   />
+                 </div>
+               ))}
             </div>
             
             {/* Session Info Panel (CPU/Memory/Upload) */}
             <div className="shrink-0 rounded-xl border border-zinc-800 overflow-hidden shadow-xl">
-               <SessionInfoPanel session={activeSession} />
+               <SessionInfoPanel session={activeSession!} />
             </div>
           </>
         ) : (
@@ -354,12 +406,16 @@ export default function App() {
       </main>
 
       {/* Right Sidebar: AI Chat */}
-      {activeSession ? (
+      {tabs.length > 0 ? (
         <aside className="w-[340px] xl:w-[380px] shrink-0 flex flex-col gap-4">
           <div className="flex-1 bg-[#18181b] border border-zinc-800 rounded-xl flex flex-col overflow-hidden max-h-full">
             <AIChatComponent 
-              terminalContext={terminalContext} 
-              onExecuteCommand={(cmd) => terminalRef.current?.executeCommand(cmd)}
+              terminalContext={activeTabId ? terminalContexts[activeTabId] || '' : ''} 
+              onExecuteCommand={(cmd) => {
+                 if (activeTabId && terminalRefs.current[activeTabId]) {
+                    terminalRefs.current[activeTabId].executeCommand(cmd);
+                 }
+              }}
               aiSettings={aiSettings}
             />
           </div>

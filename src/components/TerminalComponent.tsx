@@ -10,13 +10,14 @@ import { useTranslation } from 'react-i18next';
 interface Props {
   session: Session;
   onContextUpdate: (context: string) => void;
+  historySize?: number;
 }
 
 export interface TerminalRef {
   executeCommand: (cmd: string) => void;
 }
 
-const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, onContextUpdate }, ref) => {
+const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, onContextUpdate, historySize = 200 }, ref) => {
   const { t } = useTranslation();
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<Terminal | null>(null);
@@ -26,8 +27,15 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, onContextUp
   const outputBuffer = useRef<string[]>([]);
   
   const [cmdInput, setCmdInput] = useState('');
-  const [history, setHistory] = useState<string[]>([]);
+  const [history, setHistory] = useState<string[]>(() => {
+    const saved = localStorage.getItem('ai-ssh-cmd-history');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [historyIndex, setHistoryIndex] = useState(-1);
+
+  useEffect(() => {
+    localStorage.setItem('ai-ssh-cmd-history', JSON.stringify(history));
+  }, [history]);
 
   useImperativeHandle(ref, () => ({
     executeCommand: (cmd: string) => {
@@ -51,7 +59,7 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, onContextUp
       socket.emit('ssh-data', fullCmd);
       
       setHistory(prev => {
-        const newHistory = [cmdInput, ...prev.filter(c => c !== cmdInput)].slice(0, 50);
+        const newHistory = [cmdInput, ...prev.filter(c => c !== cmdInput)].slice(0, historySize);
         return newHistory;
       });
       setCmdInput('');

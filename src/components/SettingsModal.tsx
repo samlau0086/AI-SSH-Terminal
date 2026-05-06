@@ -9,6 +9,7 @@ export interface AISettings {
   apiKey: string;
   baseUrl: string;
   model: string;
+  commandHistorySize?: number;
 }
 
 interface Props {
@@ -146,6 +147,18 @@ export default function SettingsModal({ settings, onSave, onClose }: Props) {
                 onChange={e => setFormData({...formData, model: e.target.value})}
                 className={`w-full bg-[#09090b] border border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none text-zinc-200 ${formData.provider === 'openai' ? 'focus:border-emerald-500' : 'focus:border-indigo-500'}`}
                 placeholder={t('settings.modelPlaceholder')}
+              />
+            </div>
+            
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5">Command History Size</label>
+              <input 
+                type="number" 
+                min="1"
+                max="1000"
+                value={formData.commandHistorySize || 200}
+                onChange={e => setFormData({...formData, commandHistorySize: parseInt(e.target.value) || 200})}
+                className="w-full bg-[#09090b] border border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 text-zinc-200"
               />
             </div>
             
