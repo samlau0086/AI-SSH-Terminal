@@ -80,15 +80,28 @@ ${terminalContext || "No terminal context available yet."}
           }))
         ];
 
-        const completion = await client.chat.completions.create({
-          messages: oaiMessages,
-          model: aiSettings.model || 'gpt-4o',
-        });
+        let completion: any;
+        try {
+          completion = await client.chat.completions.create({
+            messages: oaiMessages,
+            model: aiSettings.model || 'gpt-4o',
+          });
+        } catch (apiError: any) {
+          // If OpenAI SDK throws an error that contains HTML
+          if (typeof apiError?.message === 'string' && apiError.message.includes('<!DOCTYPE html')) {
+             throw new Error(`The API returned an HTML webpage instead of JSON. This usually means the Base URL is incorrect. Please try appending "/v1" to your Base URL in the settings (e.g., ${aiSettings.baseUrl?.replace(/\/$/, '')}/v1).`);
+          }
+          throw apiError;
+        }
 
-        if (!completion?.choices?.length) {
+        if (typeof completion === 'string' || !completion?.choices?.length) {
+          const responseStr = typeof completion === 'string' ? completion : JSON.stringify(completion);
+          if (responseStr.toLowerCase().includes('<!doctype html') || responseStr.includes('<html')) {
+            throw new Error(`The API returned an HTML webpage instead of JSON. This usually means the Base URL is incorrect. Please try appending "/v1" to your Base URL in the settings (e.g., ${aiSettings.baseUrl?.replace(/\/$/, '')}/v1).`);
+          }
           throw new Error(
             "Invalid response from AI API: " + 
-            ((completion as any)?.error?.message || JSON.stringify(completion))
+            ((completion as any)?.error?.message || responseStr)
           );
         }
 

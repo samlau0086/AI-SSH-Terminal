@@ -38,11 +38,28 @@ export default function SettingsModal({ settings, onSave, onClose }: Props) {
           baseURL: formData.baseUrl || undefined,
           dangerouslyAllowBrowser: true
         });
-        await client.chat.completions.create({
-          messages: [{ role: 'user', content: 'Say "Hi" if you can read this.' }],
-          model: formData.model || 'gpt-4o',
-          max_tokens: 10,
-        });
+        
+        let res: any;
+        try {
+          res = await client.chat.completions.create({
+            messages: [{ role: 'user', content: 'Say "Hi" if you can read this.' }],
+            model: formData.model || 'gpt-4o',
+            max_tokens: 10,
+          });
+        } catch (apiError: any) {
+          if (typeof apiError?.message === 'string' && apiError.message.toLowerCase().includes('<!doctype html')) {
+             throw new Error(`API returned an HTML page. Try appending "/v1" to your Base URL.`);
+          }
+          throw apiError;
+        }
+
+        if (typeof res === 'string' || !res?.choices?.length) {
+          const responseStr = typeof res === 'string' ? res : JSON.stringify(res);
+          if (responseStr.toLowerCase().includes('<!doctype html') || responseStr.includes('<html')) {
+            throw new Error(`API returned an HTML page. Try appending "/v1" to your Base URL.`);
+          }
+          throw new Error('Invalid API response');
+        }
       } else {
         const ai = new GoogleGenAI({ apiKey: formData.apiKey || process.env.GEMINI_API_KEY });
         await ai.models.generateContent({
