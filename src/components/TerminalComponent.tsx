@@ -64,10 +64,6 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, onContextUp
       });
       setCmdInput('');
       setHistoryIndex(-1);
-      
-      setTimeout(() => {
-        xtermRef.current?.focus();
-      }, 100);
     }
   };
 
