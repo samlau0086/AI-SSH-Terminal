@@ -52,6 +52,9 @@ jobs:
             # 安装生产环境依赖
             npm install --omit=dev
             
+            # 由于部分 VPS 环境使用较旧的 libc 系统，强制从源码重新编译 C++ 扩展包
+            npm rebuild sqlite3 cpu-features ssh2 --build-from-source || true
+            
             # 确保安装了 pm2 进行进程管理
             npm install -g pm2
             
