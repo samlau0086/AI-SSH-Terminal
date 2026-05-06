@@ -1,11 +1,24 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Session } from '../App';
-import { Activity, Upload, HardDrive, Cpu, Check, X, AlertCircle } from 'lucide-react';
+import { Activity, Upload, HardDrive, Cpu, Check, X, AlertCircle, Folder, File as FileIcon, Download, RefreshCw, ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 interface Props {
   session: Session;
+}
+
+interface RemoteFile {
+  filename: string;
+  longname: string;
+  attrs: {
+    size: number;
+    uid: number;
+    gid: number;
+    mode: number;
+    atime: number;
+    mtime: number;
+  }
 }
 
 export default function SessionInfoPanel({ session }: Props) {
@@ -15,7 +28,12 @@ export default function SessionInfoPanel({ session }: Props) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [uploadMessage, setUploadMessage] = useState('');
+  
   const [targetPath, setTargetPath] = useState('~/');
+  const [inputPath, setInputPath] = useState('~/');
+  const [files, setFiles] = useState<RemoteFile[]>([]);
+  const [isLoadingFiles, setIsLoadingFiles] = useState(false);
+  const [fileError, setFileError] = useState('');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -49,6 +67,37 @@ export default function SessionInfoPanel({ session }: Props) {
     };
   }, [token, session]);
 
+  const loadFiles = async (dirPath: string) => {
+    if (!token || !session?.id) return;
+    
+    setIsLoadingFiles(true);
+    setFileError('');
+    try {
+      const res = await fetch(`/api/sessions/${session.id}/files?path=${encodeURIComponent(dirPath)}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+         setFiles(data.files || []);
+         setTargetPath(dirPath);
+         setInputPath(dirPath);
+      } else {
+         setFileError(data.error || 'Failed to load files');
+      }
+    } catch (err: any) {
+      setFileError(err.message);
+    } finally {
+      setIsLoadingFiles(false);
+    }
+  };
+
+  useEffect(() => {
+    if (session?.id && token) {
+      loadFiles(targetPath);
+    }
+  }, [session?.id, token]);
+
+
   const handleFileUpload = async (file: File) => {
     if (!file || !token || !session?.id) return;
     
@@ -59,9 +108,10 @@ export default function SessionInfoPanel({ session }: Props) {
     
     // Ensure target path ends with / if it's a directory
     let finalPath = targetPath;
-    if (finalPath.endsWith('/')) {
-        finalPath += file.name;
+    if (!finalPath.endsWith('/')) {
+        finalPath += '/';
     }
+    finalPath += file.name;
 
     formData.append('path', finalPath);
 
@@ -75,6 +125,7 @@ export default function SessionInfoPanel({ session }: Props) {
       if (res.ok) {
         setUploadStatus('success');
         setUploadMessage(data.message);
+        loadFiles(targetPath); // Reload folder
       } else {
         setUploadStatus('error');
         setUploadMessage(data.error || 'Upload failed');
@@ -89,10 +140,52 @@ export default function SessionInfoPanel({ session }: Props) {
     }
   };
 
+  const handleDownload = (filename: string) => {
+    if (!token || !session?.id) return;
+    let fullPath = targetPath;
+    if (!fullPath.endsWith('/')) fullPath += '/';
+    fullPath += filename;
+    
+    // Since we are using jwt, we can't easily use a simple <a> tag unless we pass the token in URL
+    // So we'll fetch the blob then trigger download
+    fetch(`/api/sessions/${session.id}/download?path=${encodeURIComponent(fullPath)}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+    .then(res => {
+       if (!res.ok) throw new Error('Download failed');
+       return res.blob();
+    })
+    .then(blob => {
+       const url = window.URL.createObjectURL(blob);
+       const a = document.createElement('a');
+       a.style.display = 'none';
+       a.href = url;
+       a.download = filename;
+       document.body.appendChild(a);
+       a.click();
+       window.URL.revokeObjectURL(url);
+    })
+    .catch(err => {
+       setFileError(err.message);
+       setTimeout(() => setFileError(''), 3000);
+    });
+  };
+
+  const isDirectory = (file: RemoteFile) => {
+    // Mode check for directory (S_IFDIR is 0x4000 or 0040000)
+    // Actually in SFTP longname usually starts with 'd'
+    return file.longname.startsWith('d');
+  };
+
+  const formatSize = (bytes: number) => {
+     if (bytes === 0) return '0 B';
+     const k = 1024;
+     const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+     const i = Math.floor(Math.log(bytes) / Math.log(k));
+     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  };
+
   // Parse `statsStr` which has output from `top -b -n 1 | head -n 5 && free -m`
-  // %Cpu(s):  1.5 us,  0.5 sy,  ... idle
-  // Mem: total used free ...
-  
   let cpuUsage = 'N/A';
   let memUsage = 'N/A';
 
@@ -116,7 +209,7 @@ export default function SessionInfoPanel({ session }: Props) {
   }
 
   return (
-    <div className="flex border-t border-zinc-800 bg-[#09090b] text-xs h-40 shrink-0">
+    <div className="flex border-t border-zinc-800 bg-[#09090b] text-xs h-48 shrink-0">
       {/* Stats Section */}
       <div className="w-1/3 border-r border-zinc-800 p-4 flex flex-col justify-center">
          <h3 className="text-[10px] uppercase font-bold text-zinc-500 tracking-widest mb-3 flex items-center gap-2">
@@ -146,25 +239,37 @@ export default function SessionInfoPanel({ session }: Props) {
          </div>
       </div>
 
-      {/* Upload Section */}
-      <div className="w-2/3 p-4 flex flex-col justify-center relative">
-         <h3 className="text-[10px] uppercase font-bold text-zinc-500 tracking-widest mb-3 flex items-center gap-2">
-            <Upload className="w-3 h-3 text-indigo-400" />
-            File Transfer (SFTP)
-         </h3>
-
-         <div className="flex items-center gap-3">
-             <div className="flex-1 flex items-center bg-black border border-zinc-800 rounded-lg px-3 py-2">
-                 <span className="text-zinc-600 mr-2 font-mono">Path:</span>
+      {/* File Explorer Section */}
+      <div className="w-2/3 flex flex-col relative overflow-hidden">
+         {/* Toolbar */}
+         <div className="p-2 border-b border-zinc-800 flex items-center gap-2 bg-[#000000]">
+             <Folder className="w-4 h-4 text-indigo-400 shrink-0" />
+             <form 
+               onSubmit={(e) => { e.preventDefault(); loadFiles(inputPath); }}
+               className="flex-1 flex items-center"
+             >
                  <input 
                     type="text" 
-                    value={targetPath}
-                    onChange={e => setTargetPath(e.target.value)}
-                    className="bg-transparent border-none outline-none text-zinc-300 font-mono w-full"
-                    placeholder="/root/ or ./filename"
+                    value={inputPath}
+                    onChange={e => setInputPath(e.target.value)}
+                    className="bg-transparent border-none outline-none text-zinc-300 font-mono w-full px-2"
+                    placeholder="/path/to/dir"
                  />
-             </div>
+                 <button type="submit" className="text-zinc-500 hover:text-zinc-300 p-1">
+                    <ChevronRight className="w-4 h-4" />
+                 </button>
+             </form>
+
+             <button 
+                onClick={() => loadFiles(targetPath)}
+                className="p-1.5 text-zinc-400 hover:text-white rounded-md hover:bg-zinc-800"
+                title="Refresh"
+             >
+                <RefreshCw className={`w-3.5 h-3.5 ${isLoadingFiles ? 'animate-spin text-indigo-400' : ''}`} />
+             </button>
              
+             <div className="w-px h-4 bg-zinc-800 mx-1"></div>
+
              <input 
                 type="file" 
                 ref={fileInputRef} 
@@ -179,27 +284,104 @@ export default function SessionInfoPanel({ session }: Props) {
              <button 
                  disabled={isUploading}
                  onClick={() => fileInputRef.current?.click()}
-                 className="shrink-0 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-bold uppercase tracking-widest transition-colors flex items-center gap-2"
+                 className="shrink-0 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-3 py-1.5 rounded-md font-bold text-[10px] uppercase tracking-widest transition-colors flex items-center gap-1.5"
              >
                  {isUploading ? (
-                     <Activity className="w-4 h-4 animate-spin" />
+                     <Activity className="w-3.5 h-3.5 animate-spin" />
                  ) : (
-                     <Upload className="w-4 h-4" />
+                     <Upload className="w-3.5 h-3.5" />
                  )}
-                 Select File
+                 Upload
              </button>
          </div>
 
-         {uploadStatus === 'success' && (
-             <div className="absolute bottom-4 left-4 right-4 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 p-2 rounded-md flex items-center gap-2 mt-2">
-                 <Check className="w-3.5 h-3.5" />
-                 <span>{uploadMessage}</span>
-             </div>
-         )}
+         {/* File List */}
+         <div className="flex-1 overflow-y-auto p-2 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
+             {fileError ? (
+                 <div className="flex flex-col items-center justify-center p-4 text-red-400 h-full">
+                     <AlertCircle className="w-6 h-6 mb-2" />
+                     <span>{fileError}</span>
+                 </div>
+             ) : (
+                 <table className="w-full text-left border-collapse">
+                     <thead>
+                         <tr className="text-[10px] uppercase tracking-widest text-zinc-500 sticky top-0 bg-[#09090b] z-10">
+                             <th className="font-normal py-1.5 px-2">Name</th>
+                             <th className="font-normal py-1.5 px-2 w-24">Size</th>
+                             <th className="font-normal py-1.5 px-2 w-16 text-right">Actions</th>
+                         </tr>
+                     </thead>
+                     <tbody className="font-mono text-xs">
+                         {files.sort((a, b) => {
+                             const aDir = isDirectory(a);
+                             const bDir = isDirectory(b);
+                             if (aDir && !bDir) return -1;
+                             if (!aDir && bDir) return 1;
+                             return a.filename.localeCompare(b.filename);
+                         }).map(f => {
+                             const isDir = isDirectory(f);
+                             return (
+                                 <tr key={f.filename} className="border-b border-zinc-800/50 hover:bg-zinc-800/30 group">
+                                     <td className="py-1.5 px-2">
+                                         <div className="flex items-center gap-2">
+                                             {isDir ? (
+                                                 <Folder className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                                             ) : (
+                                                 <FileIcon className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
+                                             )}
+                                             {isDir ? (
+                                                 <button 
+                                                     onClick={() => {
+                                                         let newPath = targetPath;
+                                                         if (!newPath.endsWith('/')) newPath += '/';
+                                                         if (f.filename === '..') {
+                                                             newPath = newPath.split('/').slice(0, -2).join('/') || '/';
+                                                         } else if (f.filename !== '.') {
+                                                             newPath += f.filename;
+                                                         }
+                                                         loadFiles(newPath);
+                                                     }}
+                                                     className="text-white hover:underline focus:outline-none text-left truncate max-w-[200px]"
+                                                 >
+                                                    {f.filename}
+                                                 </button>
+                                             ) : (
+                                                 <span className="text-zinc-300 truncate max-w-[200px]">{f.filename}</span>
+                                             )}
+                                         </div>
+                                     </td>
+                                     <td className="py-1.5 px-2 text-zinc-500">
+                                         {!isDir && formatSize(f.attrs.size)}
+                                     </td>
+                                     <td className="py-1.5 px-2 text-right">
+                                         {!isDir && (
+                                             <button 
+                                                onClick={() => handleDownload(f.filename)}
+                                                className="text-zinc-500 hover:text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity p-1"
+                                                title="Download"
+                                             >
+                                                <Download className="w-3.5 h-3.5" />
+                                             </button>
+                                         )}
+                                     </td>
+                                 </tr>
+                             );
+                         })}
+                         {files.length === 0 && !isLoadingFiles && (
+                             <tr>
+                                 <td colSpan={3} className="py-4 text-center text-zinc-600">
+                                     Empty directory
+                                 </td>
+                             </tr>
+                         )}
+                     </tbody>
+                 </table>
+             )}
+         </div>
 
-         {uploadStatus === 'error' && (
-             <div className="absolute bottom-4 left-4 right-4 bg-red-500/10 border border-red-500/30 text-red-400 p-2 rounded-md flex items-center gap-2 mt-2">
-                 <AlertCircle className="w-3.5 h-3.5" />
+         {uploadStatus === 'success' && (
+             <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-emerald-500/90 text-white px-3 py-1.5 rounded shadow-lg text-xs flex items-center gap-1.5 backdrop-blur-sm z-20">
+                 <Check className="w-3 h-3" />
                  <span>{uploadMessage}</span>
              </div>
          )}
