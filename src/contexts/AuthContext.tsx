@@ -29,30 +29,56 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (token) {
-      fetch('/api/auth/me', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      .then(async res => {
-        if (res.ok) return res.json();
+    let isMounted = true;
+    let retryCount = 0;
+    const maxRetries = 3;
+
+    const verifyAuth = async () => {
+      if (!token) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/auth/me', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted) {
+            setUser(data.user);
+            setIsLoading(false);
+          }
+          return;
+        }
+
+        // Handle specific error codes if needed
         const errData = await res.json().catch(() => ({}));
         console.error(`Auth verification failed: ${res.status} ${res.statusText}`, errData);
         throw new Error('Not authenticated');
-      })
-      .then(data => {
-        setUser(data.user);
-        setIsLoading(false);
-      })
-      .catch((err) => {
-        console.error('Failed to fetch /api/auth/me:', err);
-        setToken(null);
-        setUser(null);
-        localStorage.removeItem('ai-ssh-token');
-        setIsLoading(false);
-      });
-    } else {
-      setIsLoading(false);
-    }
+
+      } catch (err) {
+        console.error(`Failed to fetch /api/auth/me (retry ${retryCount}):`, err);
+        
+        if (retryCount < maxRetries && isMounted) {
+          retryCount++;
+          setTimeout(verifyAuth, 1000 * retryCount); // Backoff retry
+          return;
+        }
+
+        if (isMounted) {
+          setToken(null);
+          setUser(null);
+          localStorage.removeItem('ai-ssh-token');
+          setIsLoading(false);
+        }
+      }
+    };
+
+    verifyAuth();
+
+    return () => { isMounted = false; };
   }, [token]);
 
   const login = (newToken: string, newUser: User) => {

@@ -12,12 +12,15 @@ const __dirname = path.dirname(__filename);
 
 async function startServer() {
   const app = express();
-  const PORT = process.env.APP_PORT ? parseInt(process.env.APP_PORT, 10) : 3000;
+  const PORT = 3000;
   const httpServer = createServer(app);
   
+  console.log("Starting server initialization...");
   let db;
   try {
+    console.log("Initializing database...");
     db = await initDb();
+    console.log("Database initialized successfully.");
   } catch (err) {
     console.error("Failed to initialize database:", err);
     process.exit(1);
@@ -146,6 +149,14 @@ async function startServer() {
 
   httpServer.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://0.0.0.0:${PORT} (Environment: ${process.env.NODE_ENV})`);
+  });
+
+  process.on("unhandledRejection", (reason, promise) => {
+    console.error("Unhandled Rejection at:", promise, "reason:", reason);
+  });
+
+  process.on("uncaughtException", (err) => {
+    console.error("Uncaught Exception:", err);
   });
 }
 
