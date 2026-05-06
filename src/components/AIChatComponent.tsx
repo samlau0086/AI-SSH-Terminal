@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Command, ArrowRight, Play, Rocket, Activity } from 'lucide-react';
+import { Send, Bot, User, Command, ArrowRight, Play, Rocket, Activity, Check } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
 import OpenAI from "openai";
 import { cn } from '../lib/utils';
@@ -33,6 +33,7 @@ export default function AIChatComponent({ terminalContext, onExecuteCommand, aiS
   ]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [copiedText, setCopiedText] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -163,9 +164,25 @@ ${terminalContext || "No terminal context available yet."}
     }
   };
 
-  const copyCommand = (cmd: string) => {
-    navigator.clipboard.writeText(cmd);
-    // Could add toast notification here
+  const copyCommand = async (cmd: string) => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(cmd);
+      } else {
+        const textArea = document.createElement("textarea");
+        textArea.value = cmd;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+      }
+      setCopiedText(cmd);
+      setTimeout(() => {
+        setCopiedText(null);
+      }, 2000);
+    } catch (err) {
+      console.error('Failed to copy', err);
+    }
   };
 
   return (
@@ -218,8 +235,17 @@ ${terminalContext || "No terminal context available yet."}
                                 onClick={() => copyCommand(String(children).replace(/\n$/, ''))}
                                 className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 p-1.5 rounded-md text-xs flex items-center gap-1"
                               >
-                                <Command className="w-3 h-3" />
-                                {t('chat.copy')}
+                                {copiedText === String(children).replace(/\n$/, '') ? (
+                                  <>
+                                    <Check className="w-3 h-3 text-emerald-400" />
+                                    <span className="text-emerald-400">{t('Copied')}</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Command className="w-3 h-3" />
+                                    {t('chat.copy')}
+                                  </>
+                                )}
                               </button>
                             </div>
                             <pre className={className} {...props}>
