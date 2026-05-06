@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Session } from '../App';
-import { Activity, Upload, HardDrive, Cpu, Check, X, AlertCircle, Folder, File as FileIcon, Download, RefreshCw, ChevronRight } from 'lucide-react';
+import { Activity, Upload, HardDrive, Cpu, Check, X, AlertCircle, Folder, File as FileIcon, Download, RefreshCw, ChevronRight, Trash } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 interface Props {
@@ -165,6 +165,37 @@ export default function SessionInfoPanel({ session }: Props) {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+  };
+
+  const handleDelete = async (filename: string, isDir: boolean) => {
+    if (!token || !session?.id) return;
+    if (!window.confirm(`Are you sure you want to delete ${filename}?`)) return;
+
+    let fullPath = targetPath;
+    if (!fullPath.endsWith('/')) fullPath += '/';
+    fullPath += filename;
+
+    setIsLoadingFiles(true);
+    try {
+      const res = await fetch(`/api/sessions/${session.id}/files?path=${encodeURIComponent(fullPath)}&isDir=${isDir}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        loadFiles(targetPath);
+      } else {
+        const errorData = await res.json();
+        setFileError(errorData.error || 'Delete failed');
+        setTimeout(() => setFileError(''), 3000);
+        setIsLoadingFiles(false);
+      }
+    } catch (err: any) {
+      setFileError(err.message);
+      setTimeout(() => setFileError(''), 3000);
+      setIsLoadingFiles(false);
+    }
   };
 
   const isDirectory = (file: RemoteFile) => {
@@ -350,15 +381,29 @@ export default function SessionInfoPanel({ session }: Props) {
                                          {!isDir && formatSize(f.attrs.size)}
                                      </td>
                                      <td className="py-1.5 px-2 text-right">
-                                         {!isDir && (
-                                             <button 
-                                                onClick={() => handleDownload(f.filename)}
-                                                className="text-zinc-500 hover:text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity p-1"
-                                                title="Download"
-                                             >
-                                                <Download className="w-3.5 h-3.5" />
-                                             </button>
-                                         )}
+                                         <div className="flex justify-end items-center gap-1">
+                                             {!isDir && (
+                                                 <button 
+                                                    onClick={() => handleDownload(f.filename)}
+                                                    className="text-zinc-500 hover:text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity p-1"
+                                                    title="Download"
+                                                 >
+                                                    <Download className="w-3.5 h-3.5" />
+                                                 </button>
+                                             )}
+                                             {f.filename !== '.' && f.filename !== '..' && (
+                                                 <button 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation(); // prevent directory navigation if it's a dir
+                                                        handleDelete(f.filename, isDir);
+                                                    }}
+                                                    className="text-zinc-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity p-1"
+                                                    title="Delete"
+                                                 >
+                                                    <Trash className="w-3.5 h-3.5" />
+                                                 </button>
+                                             )}
+                                         </div>
                                      </td>
                                  </tr>
                              );
