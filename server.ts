@@ -147,9 +147,25 @@ async function startServer() {
     });
   }
 
-  httpServer.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://0.0.0.0:${PORT} (Environment: ${process.env.NODE_ENV})`);
-  });
+  const startListen = (port: number) => {
+    const server = httpServer.listen(port, "0.0.0.0", () => {
+      console.log(`Server running on http://0.0.0.0:${port} (Environment: ${process.env.NODE_ENV})`);
+    });
+
+    server.on("error", (err: any) => {
+      if (err.code === "EADDRINUSE") {
+        console.log(`Port ${port} is in use, retrying in 2 seconds...`);
+        setTimeout(() => {
+          server.close();
+          startListen(port);
+        }, 2000);
+      } else {
+        console.error("Server failed to start:", err);
+      }
+    });
+  };
+
+  startListen(PORT);
 
   process.on("unhandledRejection", (reason, promise) => {
     console.error("Unhandled Rejection at:", promise, "reason:", reason);
