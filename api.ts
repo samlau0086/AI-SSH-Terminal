@@ -353,6 +353,96 @@ export function createApiRouter(db: any) {
     }
   });
 
+  router.get("/sessions/:id/files", authenticateToken, async (req: any, res: any) => {
+    try {
+       const session = await db.get(`SELECT * FROM sessions WHERE id = ? AND userId = ?`, [req.params.id, req.user.id]);
+       if (!session) return res.status(404).json({ error: "Session not found" });
+
+       const dirPath = req.query.path || '~/';
+
+       const sshClient = new Client();
+       sshClient.on('ready', () => {
+           sshClient.sftp((err, sftp) => {
+               if (err) {
+                   sshClient.end();
+                   return res.status(500).json({ error: err.message });
+               }
+               sftp.readdir(dirPath, (readErr, list) => {
+                   sshClient.end();
+                   if (readErr) {
+                       return res.status(500).json({ error: readErr.message });
+                   }
+                   res.json({ files: list });
+               });
+           });
+       }).on('error', (err) => {
+           res.status(500).json({ error: err.message });
+       });
+
+       try {
+         const config: any = { host: session.host, port: session.port, username: session.username };
+         if (session.password) config.password = session.password;
+         if (session.privateKey) {
+           config.privateKey = session.privateKey;
+           if (session.passphrase) config.passphrase = session.passphrase;
+         }
+         sshClient.connect(config);
+       } catch(err: any) {
+          res.status(500).json({ error: err.message });
+       }
+    } catch (err: any) {
+       res.status(500).json({ error: err.message });
+    }
+  });
+
+  router.get("/sessions/:id/download", authenticateToken, async (req: any, res: any) => {
+    try {
+       const session = await db.get(`SELECT * FROM sessions WHERE id = ? AND userId = ?`, [req.params.id, req.user.id]);
+       if (!session) return res.status(404).json({ error: "Session not found" });
+
+       const filePath = req.query.path;
+       if (!filePath) return res.status(400).json({ error: "Missing path" });
+
+       const sshClient = new Client();
+       sshClient.on('ready', () => {
+           sshClient.sftp((err, sftp) => {
+               if (err) {
+                   sshClient.end();
+                   return res.status(500).json({ error: err.message });
+               }
+
+               const readStream = sftp.createReadStream(filePath);
+               readStream.on('error', (readErr) => {
+                   sshClient.end();
+                   if (!res.headersSent) res.status(500).json({ error: readErr.message });
+               });
+
+               res.setHeader('Content-Disposition', `attachment; filename="${filePath.split('/').pop()}"`);
+               readStream.pipe(res);
+               readStream.on('end', () => {
+                   sshClient.end();
+               });
+           });
+       }).on('error', (err) => {
+           if (!res.headersSent) res.status(500).json({ error: err.message });
+       });
+
+       try {
+         const config: any = { host: session.host, port: session.port, username: session.username };
+         if (session.password) config.password = session.password;
+         if (session.privateKey) {
+           config.privateKey = session.privateKey;
+           if (session.passphrase) config.passphrase = session.passphrase;
+         }
+         sshClient.connect(config);
+       } catch(err: any) {
+          if (!res.headersSent) res.status(500).json({ error: err.message });
+       }
+    } catch (err: any) {
+       if (!res.headersSent) res.status(500).json({ error: err.message });
+    }
+  });
+
   router.get("/quick-commands", authenticateToken, async (req: any, res: any) => {
     try {
       const commands = await db.all('SELECT * FROM quick_commands WHERE userId = ?', [req.user.id]);

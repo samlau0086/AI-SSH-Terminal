@@ -25,6 +25,10 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, onContextUp
   const [errorMsg, setErrorMsg] = useState('');
   const outputBuffer = useRef<string[]>([]);
   
+  const [cmdInput, setCmdInput] = useState('');
+  const [history, setHistory] = useState<string[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+
   useImperativeHandle(ref, () => ({
     executeCommand: (cmd: string) => {
       // If we are connected and socket exists, send the command + newline
@@ -39,6 +43,47 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, onContextUp
       }
     }
   }));
+
+  const handleCommandSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (cmdInput.trim() && socket && status === 'connected') {
+      const fullCmd = cmdInput + '\n';
+      socket.emit('ssh-data', fullCmd);
+      
+      setHistory(prev => {
+        const newHistory = [cmdInput, ...prev.filter(c => c !== cmdInput)].slice(0, 50);
+        return newHistory;
+      });
+      setCmdInput('');
+      setHistoryIndex(-1);
+      
+      setTimeout(() => {
+        xtermRef.current?.focus();
+      }, 100);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (history.length > 0) {
+        const nextIndex = Math.min(historyIndex + 1, history.length - 1);
+        setHistoryIndex(nextIndex);
+        setCmdInput(history[nextIndex]);
+      }
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (historyIndex > 0) {
+        const nextIndex = historyIndex - 1;
+        setHistoryIndex(nextIndex);
+        setCmdInput(history[nextIndex]);
+      } else if (historyIndex === 0) {
+        setHistoryIndex(-1);
+        setCmdInput('');
+      }
+    }
+  };
+
   
   const connect = () => {
     if (!terminalRef.current) return;
@@ -213,7 +258,31 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, onContextUp
         </div>
       )}
 
-      <div ref={terminalRef} className="flex-1 w-full h-full" />
+      <div ref={terminalRef} className="flex-1 w-full min-h-0" />
+      
+      {/* Command Input Bar */}
+      <form 
+        onSubmit={handleCommandSubmit}
+        className="mt-2 shrink-0 flex items-center bg-[#18181b] border border-zinc-800 rounded-md p-1"
+      >
+        <span className="text-zinc-500 font-mono text-xs ml-2 mr-2 shrink-0">$</span>
+        <input 
+          type="text"
+          value={cmdInput}
+          onChange={e => setCmdInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={t('terminal.typeCommand')}
+          className="flex-1 bg-transparent border-none outline-none text-zinc-300 font-mono text-xs placeholder:text-zinc-600"
+          disabled={status !== 'connected'}
+        />
+        <button 
+          type="submit" 
+          disabled={status !== 'connected' || !cmdInput.trim()}
+          className="text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1 rounded disabled:opacity-50 transition-colors uppercase font-bold tracking-widest"
+        >
+          {t('chat.run' /* we can just use send/run translation */)}
+        </button>
+      </form>
     </div>
   );
 });
