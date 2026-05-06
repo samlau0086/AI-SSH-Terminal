@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { X } from 'lucide-react';
 import type { Session } from '../App';
@@ -8,16 +8,34 @@ interface Props {
   session: Partial<Session>;
   onSave: (session: Session) => void;
   onClose: () => void;
+  availableTags?: string[];
 }
 
-export default function SessionForm({ session, onSave, onClose }: Props) {
+export default function SessionForm({ session, onSave, onClose, availableTags = [] }: Props) {
   const { t } = useTranslation();
+  const suggestionRef = useRef<HTMLDivElement>(null);
   const [formData, setFormData] = useState<Partial<Session>>({
     id: uuidv4(),
     ...session,
     tags: session.tags || []
   });
   const [tagInput, setTagInput] = useState('');
+  const [showTagSuggestions, setShowTagSuggestions] = useState(false);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (suggestionRef.current && !suggestionRef.current.contains(event.target as Node)) {
+        setShowTagSuggestions(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filteredSuggestions = availableTags.filter(tag => 
+    tag.toLowerCase().includes(tagInput.toLowerCase()) && 
+    !(formData.tags || []).includes(tag)
+  );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,11 +43,19 @@ export default function SessionForm({ session, onSave, onClose }: Props) {
     onSave(formData as Session);
   };
 
-  const addTag = (e: React.KeyboardEvent) => {
+  const handleAddTag = (tag: string) => {
+    const trimmedTag = tag.trim();
+    if (trimmedTag && !(formData.tags || []).includes(trimmedTag)) {
+      setFormData(prev => ({ ...prev, tags: [...(prev.tags || []), trimmedTag] }));
+    }
+    setTagInput('');
+    setShowTagSuggestions(false);
+  };
+
+  const addTagOnEnter = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && tagInput.trim()) {
       e.preventDefault();
-      setFormData(prev => ({ ...prev, tags: [...(prev.tags || []), tagInput.trim()] }));
-      setTagInput('');
+      handleAddTag(tagInput);
     }
   };
 
@@ -148,23 +174,44 @@ export default function SessionForm({ session, onSave, onClose }: Props) {
 
             <div>
               <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5">{t('sessionForm.tags')}</label>
-              <div className="w-full bg-[#09090b] border border-zinc-800 rounded-lg p-2 flex flex-wrap gap-2 focus-within:border-indigo-500 transition-colors">
-                {(formData.tags || []).map((tag, idx) => (
-                  <span key={idx} className="flex items-center gap-1 px-2 py-1 bg-indigo-500/10 text-indigo-400 font-bold uppercase tracking-tighter rounded text-[10px]">
-                    {tag}
-                    <button type="button" onClick={() => removeTag(idx)} className="hover:text-red-400">
-                      <X className="w-3 h-3" />
-                    </button>
-                  </span>
-                ))}
-                <input 
-                  type="text" 
-                  value={tagInput}
-                  onChange={e => setTagInput(e.target.value)}
-                  onKeyDown={addTag}
-                  className="flex-1 bg-transparent border-none focus:outline-none text-sm min-w-[100px] text-zinc-200"
-                  placeholder={t('sessionForm.addTag')}
-                />
+              <div className="relative" ref={suggestionRef}>
+                <div className="w-full bg-[#09090b] border border-zinc-800 rounded-lg p-2 flex flex-wrap gap-2 focus-within:border-indigo-500 transition-colors">
+                  {(formData.tags || []).map((tag, idx) => (
+                    <span key={idx} className="flex items-center gap-1 px-2 py-1 bg-indigo-500/10 text-indigo-400 font-bold uppercase tracking-tighter rounded text-[10px]">
+                      {tag}
+                      <button type="button" onClick={() => removeTag(idx)} className="hover:text-red-400">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                  <input 
+                    type="text" 
+                    value={tagInput}
+                    onChange={e => {
+                      setTagInput(e.target.value);
+                      setShowTagSuggestions(true);
+                    }}
+                    onFocus={() => setShowTagSuggestions(true)}
+                    onKeyDown={addTagOnEnter}
+                    className="flex-1 bg-transparent border-none focus:outline-none text-sm min-w-[100px] text-zinc-200"
+                    placeholder={t('sessionForm.addTag')}
+                  />
+                </div>
+
+                {showTagSuggestions && tagInput && filteredSuggestions.length > 0 && (
+                  <div className="absolute z-[60] left-0 right-0 mt-1 bg-[#18181b] border border-zinc-800 rounded-lg shadow-xl max-h-40 overflow-y-auto custom-scrollbar overflow-hidden">
+                    {filteredSuggestions.map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => handleAddTag(tag)}
+                        className="w-full text-left px-3 py-2 text-xs text-zinc-300 hover:bg-indigo-600 hover:text-white transition-colors border-b border-zinc-800/50 last:border-0"
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 

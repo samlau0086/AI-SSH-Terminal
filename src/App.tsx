@@ -521,6 +521,7 @@ export default function App() {
           session={isEditingSession as Partial<Session>} 
           onSave={saveSession} 
           onClose={() => setIsEditingSession(null)} 
+          availableTags={Array.from(new Set(sessions.flatMap(s => s.tags || [])))}
         />
       )}
 
