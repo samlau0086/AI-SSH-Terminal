@@ -4,6 +4,7 @@ export interface User {
   id: number;
   username: string;
   role: 'admin' | 'user';
+  is_approved?: number | boolean;
 }
 
 interface AuthContextType {

@@ -17,7 +17,8 @@ export async function initDb() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT UNIQUE NOT NULL,
       passwordHash TEXT NOT NULL,
-      role TEXT NOT NULL DEFAULT 'user'
+      role TEXT NOT NULL DEFAULT 'user',
+      is_approved INTEGER NOT NULL DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS sessions (
@@ -36,6 +37,17 @@ export async function initDb() {
       FOREIGN KEY(userId) REFERENCES users(id) ON DELETE CASCADE
     );
   `);
+
+  try {
+    await db.get('SELECT is_approved FROM users LIMIT 1');
+  } catch (e) {
+    // Add column if it doesn't exist for older databases
+    await db.exec('ALTER TABLE users ADD COLUMN is_approved INTEGER NOT NULL DEFAULT 0;');
+    // Set existing admins to approved by default
+    await db.exec('UPDATE users SET is_approved = 1 WHERE role = "admin";');
+    // Set old users to approved? Or maybe they stay unapproved? Let's approve old users to not break existing instances, or leave them as 0 if they want to approve manually. Let's approve all existing for backward compatibility.
+    await db.exec('UPDATE users SET is_approved = 1;');
+  }
 
   return db;
 }
@@ -67,16 +79,22 @@ export function createApiRouter(db: any) {
     try {
       const { username, password, role } = req.body;
       const usersCount = await db.get('SELECT COUNT(*) as count FROM users');
-      const assignedRole = (role && usersCount.count === 0) ? 'admin' : (usersCount.count === 0 ? 'admin' : 'user');
+      const isFirstUser = usersCount.count === 0;
+      const assignedRole = (role && isFirstUser) ? 'admin' : (isFirstUser ? 'admin' : 'user');
+      const isApproved = isFirstUser ? 1 : 0; // First user is always approved
 
       const hashedPassword = await bcrypt.hash(password, 10);
       const result = await db.run(
-        'INSERT INTO users (username, passwordHash, role) VALUES (?, ?, ?)',
-        [username, hashedPassword, assignedRole]
+        'INSERT INTO users (username, passwordHash, role, is_approved) VALUES (?, ?, ?, ?)',
+        [username, hashedPassword, assignedRole, isApproved]
       );
       
+      if (!isApproved) {
+        return res.status(201).json({ message: "Registration successful. Please wait for an administrator to approve your account." });
+      }
+
       const token = jwt.sign({ id: result.lastID, username, role: assignedRole }, JWT_SECRET);
-      res.json({ token, user: { id: result.lastID, username, role: assignedRole } });
+      res.json({ token, user: { id: result.lastID, username, role: assignedRole, is_approved: isApproved } });
     } catch (err: any) {
       if (err.message.includes('UNIQUE')) {
         res.status(400).json({ error: "Username already exists" });
@@ -92,11 +110,15 @@ export function createApiRouter(db: any) {
       const user = await db.get('SELECT * FROM users WHERE username = ?', [username]);
       if (!user) return res.status(400).json({ error: "User not found" });
 
+      if (!user.is_approved) {
+        return res.status(403).json({ error: "Account pending approval. Please wait for an administrator to approve." });
+      }
+
       const validPassword = await bcrypt.compare(password, user.passwordHash);
       if (!validPassword) return res.status(400).json({ error: "Invalid password" });
 
       const token = jwt.sign({ id: user.id, username: user.username, role: user.role }, JWT_SECRET);
-      res.json({ token, user: { id: user.id, username: user.username, role: user.role } });
+      res.json({ token, user: { id: user.id, username: user.username, role: user.role, is_approved: user.is_approved } });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -160,8 +182,17 @@ export function createApiRouter(db: any) {
   // Admin routes
   router.get("/admin/users", authenticateToken, verifyAdmin, async (req: any, res: any) => {
     try {
-      const users = await db.all('SELECT id, username, role FROM users');
+      const users = await db.all('SELECT id, username, role, is_approved FROM users');
       res.json(users);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  router.put("/admin/users/:id/approve", authenticateToken, verifyAdmin, async (req: any, res: any) => {
+    try {
+      await db.run('UPDATE users SET is_approved = 1 WHERE id=?', [req.params.id]);
+      res.json({ success: true });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

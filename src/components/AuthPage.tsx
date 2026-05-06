@@ -10,10 +10,12 @@ export default function AuthPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSuccessMsg('');
 
     const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
     
@@ -30,6 +32,13 @@ export default function AuthPage() {
       
       if (!res.ok) {
         throw new Error(data.error || t('auth.error'));
+      }
+
+      if (data.message) {
+        // This is a pending approval message
+        setSuccessMsg(data.message);
+        setIsLogin(true); // Switch to login screen so they can't submit register again immediately
+        return;
       }
       
       login(data.token, data.user);
@@ -53,6 +62,12 @@ export default function AuthPage() {
         {error && (
           <div className="bg-red-900/30 border border-red-500/50 text-red-400 text-xs p-3 rounded-lg mb-4 text-center">
             {error}
+          </div>
+        )}
+        
+        {successMsg && (
+          <div className="bg-green-900/30 border border-green-500/50 text-green-400 text-xs p-3 rounded-lg mb-4 text-center">
+            {successMsg}
           </div>
         )}
 

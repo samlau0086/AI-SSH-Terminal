@@ -32,6 +32,20 @@ export default function AdminModal({ onClose }: Props) {
     fetchUsers();
   }, [token]);
 
+  const approveUser = async (id: number) => {
+    try {
+      const res = await fetch(`/api/admin/users/${id}/approve`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setUsers(users.map(u => u.id === id ? { ...u, is_approved: 1 } : u));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const deleteUser = async (id: number) => {
     if (id === currentUser?.id) return;
     
@@ -73,18 +87,36 @@ export default function AdminModal({ onClose }: Props) {
               {users.map(u => (
                 <div key={u.id} className="flex items-center justify-between bg-[#09090b] border border-zinc-800 rounded-lg p-3">
                   <div>
-                    <div className="text-sm font-medium text-zinc-200">{u.username}</div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-zinc-200">{u.username}</span>
+                      {!u.is_approved && (
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-orange-500/20 text-orange-400 border border-orange-500/30">
+                          Pending
+                        </span>
+                      )}
+                    </div>
                     <div className="text-[10px] uppercase tracking-wider font-bold text-zinc-500 mt-1">Role: {u.role}</div>
                   </div>
-                  {u.id !== currentUser?.id && (
-                    <button 
-                      onClick={() => deleteUser(u.id)}
-                      className="p-2 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-colors"
-                      title="Delete User"
-                    >
-                      <Trash className="w-4 h-4" />
-                    </button>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {!u.is_approved && (
+                      <button 
+                        onClick={() => approveUser(u.id)}
+                        className="px-3 py-1.5 text-[10px] uppercase tracking-wider font-bold bg-indigo-500 text-white hover:bg-indigo-400 rounded-md transition-colors"
+                        title="Approve User"
+                      >
+                        Approve
+                      </button>
+                    )}
+                    {u.id !== currentUser?.id && (
+                      <button 
+                        onClick={() => deleteUser(u.id)}
+                        className="p-2 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-colors"
+                        title="Delete User"
+                      >
+                        <Trash className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
