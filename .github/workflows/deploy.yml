@@ -52,7 +52,19 @@ jobs:
             # 针对 VPS 安装生产依赖
             npm install --omit=dev
             
+            # 安装构建工具以应对原生模块编译
+            SUDO=""
+            if command -v sudo &> /dev/null; then SUDO="sudo"; fi
+            
+            if command -v apt-get &> /dev/null; then
+               $SUDO apt-get update && $SUDO apt-get install -y build-essential python3 || true
+            elif command -v yum &> /dev/null; then
+               $SUDO yum groupinstall "Development Tools" -y || true
+               $SUDO yum install -y python3 || true
+            fi
+            
             # 强制重编基于源码的 sqlite3 避免系统 GLIBC 不匹配
+            rm -rf node_modules/sqlite3
             npm install sqlite3 --build-from-source
             
             # 确保安装了 pm2 进行进程管理
@@ -60,6 +72,7 @@ jobs:
             
             # 彻底删除旧的环境，避免端口或者环境残留
             pm2 delete ai-ssh-terminal || true
+            pm2 flush ai-ssh-terminal || true
             
             # 启动服务，注入必要的环境变量
             NODE_ENV=production APP_PORT=3020 GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}" pm2 start dist/server.js --name "ai-ssh-terminal" --update-env
