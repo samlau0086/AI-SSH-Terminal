@@ -89,17 +89,6 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, onContextUp
   };
 
   
-  useEffect(() => {
-    const cleanup = connect();
-    
-    return () => {
-      if (cleanup) cleanup();
-      if (socket) {
-        socket.disconnect();
-      }
-    };
-  }, [session]);
-
   const connect = () => {
     if (!terminalRef.current) return;
 
@@ -112,9 +101,9 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, onContextUp
       const term = new Terminal({
         cursorBlink: true,
         theme: {
-          background: '#09090b',
-          foreground: '#f4f4f5',
-          cursor: '#10b981',
+          background: '#09090b', // zinc-950
+          foreground: '#f4f4f5', // zinc-50
+          cursor: '#10b981', // emerald-500
           selectionBackground: '#27272a',
           black: '#18181b',
           red: '#ef4444',
@@ -132,30 +121,26 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, onContextUp
       const fitAddon = new FitAddon();
       term.loadAddon(fitAddon);
       term.open(terminalRef.current);
-      
-      const resizeObserver = new ResizeObserver(() => {
-        if (terminalRef.current && terminalRef.current.offsetHeight > 0) {
-          fitAddon.fit();
-        }
-      });
-      resizeObserver.observe(terminalRef.current);
-      
       fitAddon.fit();
       xtermRef.current = term;
 
-      // In this specialized version, we store the observer on the terminal object for shared cleanup if needed
-      // but here we just return a local cleanup
+      const handleResize = () => fitAddon.fit();
+      window.addEventListener('resize', handleResize);
     } else {
       xtermRef.current.clear();
       outputBuffer.current = [];
     }
 
+    // Connect to backend
+    // Vite proxy handles development, but we should connect to the current origin
     const newSocket = io({
       path: '/socket.io'
     });
+
     setSocket(newSocket);
 
     newSocket.on('connect', () => {
+      // Configure credentials to send (NEVER print these)
       const connectOpts = {
         host: session.host,
         port: session.port,
@@ -165,13 +150,16 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, onContextUp
         privateKey: session.privateKey,
         passphrase: session.passphrase
       };
+      
       newSocket.emit('ssh-connect', connectOpts);
     });
 
     newSocket.on('ssh-status', (stat: any) => {
       if (stat.status === 'connected' || stat.status === 'shell-ready') {
         setStatus('connected');
-        xtermRef.current?.focus();
+        if (xtermRef.current) {
+          xtermRef.current.focus();
+        }
       } else if (stat.status === 'error') {
         setStatus('error');
         setErrorMsg(stat.message);
@@ -185,8 +173,12 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, onContextUp
     newSocket.on('ssh-data', (data: string) => {
       if (xtermRef.current) {
         xtermRef.current.write(data);
+        
+        // Track output for context (keep last 50 lines approximate)
         const lines = data.split('\n');
         outputBuffer.current = [...outputBuffer.current, ...lines].slice(-50);
+        
+        // Debounce context update slightly
         onContextUpdate(outputBuffer.current.join('\n'));
       }
     });
@@ -209,6 +201,16 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, onContextUp
       newSocket.disconnect();
     };
   };
+
+  useEffect(() => {
+    connect();
+    
+    return () => {
+      if (socket) {
+        socket.disconnect();
+      }
+    };
+  }, [session]);
 
   // Clean up terminal on unmount
   useEffect(() => {

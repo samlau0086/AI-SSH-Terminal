@@ -14,7 +14,6 @@ import AuthPage from './components/AuthPage';
 import AdminModal from './components/AdminModal';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from './contexts/AuthContext';
-import { Group as PanelGroup, Panel, Separator as PanelResizeHandle } from "react-resizable-panels";
 
 export interface Session {
   id: string;
@@ -231,318 +230,291 @@ export default function App() {
   }
 
   return (
-    <div className="h-screen w-full bg-[#09090b] text-zinc-400 font-sans overflow-hidden">
-      <PanelGroup orientation="horizontal" id="main-group" className="h-full w-full">
-        {/* Left Sidebar: Sessions */}
-        <Panel id="sidebar-left" defaultSize={25} minSize={15} maxSize={45}>
-          <aside className="h-full flex flex-col gap-3 p-3 bg-[#18181b]/50 border-r border-zinc-800">
-            <div className="h-12 bg-[#18181b] border border-zinc-800 rounded-xl flex items-center px-4 gap-3 shrink-0">
-              <div className="w-3 h-3 rounded-full bg-red-500"></div>
-              <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-              <div className="w-3 h-3 rounded-full bg-green-500"></div>
-              <span className="text-xs font-bold text-zinc-500 tracking-widest ml-auto">{t('app.title')}</span>
-              <button
-                onClick={() => {
-                  const newLang = i18n.language === 'en' ? 'zh' : 'en';
-                  i18n.changeLanguage(newLang);
-                  localStorage.setItem('ai-ssh-lang', newLang);
-                }}
-                className="text-zinc-500 hover:text-zinc-300 ml-2"
-                title={i18n.language === 'en' ? t('app.langZh') : t('app.langEn')}
+    <div className="flex h-screen w-full bg-[#09090b] text-zinc-400 font-sans p-4 gap-4 overflow-hidden">
+      {/* Left Sidebar: Sessions */}
+      <aside className="w-64 flex flex-col gap-4 shrink-0">
+        <div className="h-12 bg-[#18181b] border border-zinc-800 rounded-xl flex items-center px-4 gap-3 shrink-0">
+          <div className="w-3 h-3 rounded-full bg-red-500"></div>
+          <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+          <div className="w-3 h-3 rounded-full bg-green-500"></div>
+          <span className="text-xs font-bold text-zinc-500 tracking-widest ml-auto">{t('app.title')}</span>
+          <button
+            onClick={() => {
+              const newLang = i18n.language === 'en' ? 'zh' : 'en';
+              i18n.changeLanguage(newLang);
+              localStorage.setItem('ai-ssh-lang', newLang);
+            }}
+            className="text-zinc-500 hover:text-zinc-300 ml-2"
+            title={i18n.language === 'en' ? t('app.langZh') : t('app.langEn')}
+          >
+            <Globe className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => setIsSettingsOpen(true)}
+            className="text-zinc-500 hover:text-zinc-300 ml-2"
+            title={t('app.settings')}
+          >
+            <Settings className="w-3.5 h-3.5" />
+          </button>
+          {user?.role === 'admin' && (
+            <button
+              onClick={() => setIsAdminOpen(true)}
+              className="text-zinc-500 hover:text-emerald-400 ml-2"
+              title={t('auth.adminDashboard')}
+            >
+              <Users className="w-3.5 h-3.5" />
+            </button>
+          )}
+          <button
+            onClick={logout}
+            className="text-zinc-500 hover:text-red-400 ml-2"
+            title={t('app.logout')}
+          >
+            <LogOut className="w-3.5 h-3.5" />
+          </button>
+        </div>
+        
+        <div className="flex-1 bg-[#18181b] border border-zinc-800 rounded-xl p-4 flex flex-col gap-4 overflow-hidden">
+          <div className="flex justify-between items-center shrink-0">
+            <h2 className="text-xs font-bold uppercase tracking-widest text-zinc-500">{t('app.savedSessions')}</h2>
+            <div className="flex items-center gap-1">
+              <button 
+                onClick={() => setIsImportExportOpen(true)}
+                className="text-zinc-500 hover:text-indigo-400 transition-colors flex items-center justify-center p-1"
+                title="Import/Export Sessions"
               >
-                <Globe className="w-3.5 h-3.5" />
+                <Archive className="w-4 h-4" />
               </button>
-              <button
-                onClick={() => setIsSettingsOpen(true)}
-                className="text-zinc-500 hover:text-zinc-300 ml-2"
-                title={t('app.settings')}
+              <button 
+                onClick={() => setIsEditingSession({ authType: 'password', port: 22, tags: [] })}
+                className="text-zinc-500 hover:text-white transition-colors flex items-center justify-center p-1"
               >
-                <Settings className="w-3.5 h-3.5" />
+                <Plus className="w-4 h-4" />
               </button>
-              {user?.role === 'admin' && (
+            </div>
+          </div>
+
+          {/* Search Input */}
+          <div className="relative shrink-0">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-3.5 w-3.5 text-zinc-500" />
+            </div>
+            <input
+              type="text"
+              placeholder="Search sessions..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="block w-full pl-9 pr-3 py-1.5 text-xs bg-[#09090b] border border-zinc-800 rounded-md text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-indigo-500 transition-colors"
+            />
+          </div>
+          
+          {/* Tag Filter */}
+          {Array.from(new Set(sessions.flatMap(s => s.tags || []))).length > 0 && (
+            <div className="flex flex-wrap gap-1.5 shrink-0">
+              {Array.from(new Set(sessions.flatMap(s => s.tags || []))).map(tag => (
                 <button
-                  onClick={() => setIsAdminOpen(true)}
-                  className="text-zinc-500 hover:text-emerald-400 ml-2"
-                  title={t('auth.adminDashboard')}
+                  key={tag}
+                  onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
+                  className={cn(
+                    "px-2 py-0.5 text-[10px] rounded uppercase font-bold tracking-tighter transition-colors border",
+                    selectedTag === tag 
+                      ? "bg-indigo-500/20 text-indigo-400 border-indigo-500/50" 
+                      : "bg-[#09090b] text-zinc-500 border-zinc-800 hover:text-zinc-300"
+                  )}
                 >
-                  <Users className="w-3.5 h-3.5" />
+                  <div className="flex items-center gap-1">
+                    <Tag className="w-2.5 h-2.5" />
+                    {tag}
+                  </div>
                 </button>
-              )}
-              <button
-                onClick={logout}
-                className="text-zinc-500 hover:text-red-400 ml-2"
-                title={t('app.logout')}
-              >
-                <LogOut className="w-3.5 h-3.5" />
-              </button>
+              ))}
+            </div>
+          )}
+          
+          <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+            {sessions.filter(s => {
+              const matchesTag = !selectedTag || (s.tags && s.tags.includes(selectedTag));
+              const matchesSearch = !searchQuery || 
+                (s.name && s.name.toLowerCase().includes(searchQuery.toLowerCase())) || 
+                (s.host && s.host.toLowerCase().includes(searchQuery.toLowerCase()));
+              return matchesTag && matchesSearch;
+            }).length === 0 ? (
+              <div className="p-4 text-center text-sm text-zinc-500">
+                {t('app.noSavedSessions')}
+              </div>
+            ) : (
+              sessions.filter(s => {
+                const matchesTag = !selectedTag || (s.tags && s.tags.includes(selectedTag));
+                const matchesSearch = !searchQuery || 
+                  (s.name && s.name.toLowerCase().includes(searchQuery.toLowerCase())) || 
+                  (s.host && s.host.toLowerCase().includes(searchQuery.toLowerCase()));
+                return matchesTag && matchesSearch;
+              }).map(session => (
+                <div 
+                  key={session.id}
+                  className={cn(
+                    "p-3 rounded-lg border transition-colors cursor-pointer group hover:bg-zinc-800/30",
+                     "border-transparent"
+                  )}
+                  onClick={() => openTab(session)}
+                >
+                  <div className="flex justify-between text-sm font-medium items-center">
+                    <div className="flex items-center gap-2">
+                       <button 
+                         onClick={(e) => {
+                           e.stopPropagation();
+                           setCheckedSessionIds(prev => 
+                             prev.includes(session.id) ? prev.filter(id => id !== session.id) : [...prev, session.id]
+                           );
+                         }}
+                         className="text-zinc-500 hover:text-indigo-400 transition-colors"
+                      >
+                         {checkedSessionIds.includes(session.id) ? <CheckSquare className="w-3.5 h-3.5 text-indigo-400" /> : <Square className="w-3.5 h-3.5" />}
+                      </button>
+                      <span className="text-zinc-400 group-hover:text-zinc-300">
+                        {session.name || session.host}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); setIsEditingSession(session); }}
+                        className="text-zinc-500 hover:text-zinc-300 hidden group-hover:block"
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                      </button>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); deleteSession(session.id); }}
+                        className="text-zinc-500 hover:text-red-400 hidden group-hover:block"
+                      >
+                        <Trash className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-[11px] mt-1 text-zinc-600 truncate">
+                    {session.username}@{session.host}:{session.port}
+                  </p>
+                  {session.tags && session.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {session.tags.map(tag => (
+                        <span key={tag} className="text-[10px] bg-indigo-500/10 text-indigo-400 px-1.5 py-0.5 rounded uppercase font-bold tracking-tighter">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+          
+          <QuickCommands 
+            onExecuteActive={(cmd) => {
+              if (activeTabId && terminalRefs.current[activeTabId]) {
+                 terminalRefs.current[activeTabId].executeCommand(cmd);
+              }
+            }} 
+            checkedSessionIds={checkedSessionIds}
+            sessions={sessions}
+            hasActiveSession={!!activeSession}
+          />
+        </div>
+      </aside>
+
+      {/* Main Content Area */}
+      <main className="flex-1 flex flex-col gap-4 min-w-0">
+        {tabs.length > 0 ? (
+          <>
+            {/* Tabs Bar */}
+            <div className="h-10 bg-[#18181b] border border-zinc-800 rounded-xl flex items-center px-2 shrink-0 overflow-x-auto custom-scrollbar gap-1">
+               {tabs.map((tab) => (
+                 <div
+                   key={tab.id}
+                   onClick={() => {
+                     setActiveTabId(tab.id);
+                     setActiveSession(tab.session);
+                   }}
+                   className={cn(
+                     "px-4 py-1.5 rounded-lg text-xs font-mono font-bold uppercase tracking-widest flex items-center gap-2 cursor-pointer transition-colors whitespace-nowrap shrink-0",
+                     activeTabId === tab.id 
+                       ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30" 
+                       : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
+                   )}
+                 >
+                   <span className={cn("w-2 h-2 rounded-full", activeTabId === tab.id ? "bg-emerald-500" : "bg-zinc-600")}></span>
+                   {tab.session.name || tab.session.host}
+                   <button 
+                     onClick={(e) => closeTab(e, tab.id)}
+                     className="ml-2 hover:text-white p-0.5 rounded-md hover:bg-zinc-700/50"
+                   >
+                     <X className="w-3 h-3" />
+                   </button>
+                 </div>
+               ))}
+            </div>
+
+            {/* Terminal Container */}
+            <div className="flex-1 bg-black border border-zinc-800 rounded-xl p-4 font-mono text-sm overflow-hidden flex flex-col relative w-full h-full min-h-0">
+               {tabs.map((tab) => (
+                 <div 
+                   key={tab.id} 
+                   className={cn(
+                     "w-full h-full flex flex-col min-h-0",
+                     activeTabId === tab.id ? "flex" : "hidden"
+                   )}
+                 >
+                   <TerminalComponent 
+                     ref={el => { if (el) terminalRefs.current[tab.id] = el; }}
+                     session={tab.session} 
+                     onContextUpdate={ctx => setTerminalContexts(prev => ({...prev, [tab.id]: ctx}))}
+                     historySize={aiSettings.commandHistorySize}
+                   />
+                 </div>
+               ))}
             </div>
             
-            <div className="flex-1 bg-[#18181b] border border-zinc-800 rounded-xl p-4 flex flex-col gap-4 overflow-hidden">
-              <div className="flex justify-between items-center shrink-0">
-                <h2 className="text-xs font-bold uppercase tracking-widest text-zinc-500">{t('app.savedSessions')}</h2>
-                <div className="flex items-center gap-1">
-                  <button 
-                    onClick={() => setIsImportExportOpen(true)}
-                    className="text-zinc-500 hover:text-indigo-400 transition-colors flex items-center justify-center p-1"
-                    title="Import/Export Sessions"
-                  >
-                    <Archive className="w-4 h-4" />
-                  </button>
-                  <button 
-                    onClick={() => setIsEditingSession({ authType: 'password', port: 22, tags: [] })}
-                    className="text-zinc-500 hover:text-white transition-colors flex items-center justify-center p-1"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Search Input */}
-              <div className="relative shrink-0">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Search className="h-3.5 w-3.5 text-zinc-500" />
-                </div>
-                <input
-                  type="text"
-                  placeholder="Search sessions..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="block w-full pl-9 pr-3 py-1.5 text-xs bg-[#09090b] border border-zinc-800 rounded-md text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-indigo-500 transition-colors"
-                />
-              </div>
-              
-              {/* Tag Filter */}
-              {Array.from(new Set(sessions.flatMap(s => s.tags || []))).length > 0 && (
-                <div className="flex flex-wrap gap-1.5 shrink-0">
-                  {Array.from(new Set(sessions.flatMap(s => s.tags || []))).map(tag => (
-                    <button
-                      key={tag}
-                      onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
-                      className={cn(
-                        "px-2 py-0.5 text-[10px] rounded uppercase font-bold tracking-tighter transition-colors border",
-                        selectedTag === tag 
-                          ? "bg-indigo-500/20 text-indigo-400 border-indigo-500/50" 
-                          : "bg-[#09090b] text-zinc-500 border-zinc-800 hover:text-zinc-300"
-                      )}
-                    >
-                      <div className="flex items-center gap-1">
-                        <Tag className="w-2.5 h-2.5" />
-                        {tag}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-              
-              <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
-                {sessions.filter(s => {
-                  const matchesTag = !selectedTag || (s.tags && s.tags.includes(selectedTag));
-                  const matchesSearch = !searchQuery || 
-                    (s.name && s.name.toLowerCase().includes(searchQuery.toLowerCase())) || 
-                    (s.host && s.host.toLowerCase().includes(searchQuery.toLowerCase()));
-                  return matchesTag && matchesSearch;
-                }).length === 0 ? (
-                  <div className="p-4 text-center text-sm text-zinc-500">
-                    {t('app.noSavedSessions')}
-                  </div>
-                ) : (
-                  sessions.filter(s => {
-                    const matchesTag = !selectedTag || (s.tags && s.tags.includes(selectedTag));
-                    const matchesSearch = !searchQuery || 
-                      (s.name && s.name.toLowerCase().includes(searchQuery.toLowerCase())) || 
-                      (s.host && s.host.toLowerCase().includes(searchQuery.toLowerCase()));
-                    return matchesTag && matchesSearch;
-                  }).map(session => (
-                    <div 
-                      key={session.id}
-                      className={cn(
-                        "p-3 rounded-lg border transition-colors cursor-pointer group hover:bg-zinc-800/30",
-                         "border-transparent"
-                      )}
-                      onClick={() => openTab(session)}
-                    >
-                      <div className="flex justify-between text-sm font-medium items-center">
-                        <div className="flex items-center gap-2">
-                           <button 
-                             onClick={(e) => {
-                               e.stopPropagation();
-                               setCheckedSessionIds(prev => 
-                                 prev.includes(session.id) ? prev.filter(id => id !== session.id) : [...prev, session.id]
-                               );
-                             }}
-                             className="text-zinc-500 hover:text-indigo-400 transition-colors"
-                          >
-                             {checkedSessionIds.includes(session.id) ? <CheckSquare className="w-3.5 h-3.5 text-indigo-400" /> : <Square className="w-3.5 h-3.5" />}
-                          </button>
-                          <span className="text-zinc-400 group-hover:text-zinc-300">
-                            {session.name || session.host}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button 
-                            onClick={(e) => { e.stopPropagation(); setIsEditingSession(session); }}
-                            className="text-zinc-500 hover:text-zinc-300 hidden group-hover:block"
-                          >
-                            <Edit className="w-3.5 h-3.5" />
-                          </button>
-                          <button 
-                            onClick={(e) => { e.stopPropagation(); deleteSession(session.id); }}
-                            className="text-zinc-500 hover:text-red-400 hidden group-hover:block"
-                          >
-                            <Trash className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                      <p className="text-[11px] mt-1 text-zinc-600 truncate">
-                        {session.username}@{session.host}:{session.port}
-                      </p>
-                      {session.tags && session.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-1.5">
-                          {session.tags.map(tag => (
-                            <span key={tag} className="text-[10px] bg-indigo-500/10 text-indigo-400 px-1.5 py-0.5 rounded uppercase font-bold tracking-tighter">
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
-              
-              <QuickCommands 
-                onExecuteActive={(cmd) => {
-                  if (activeTabId && terminalRefs.current[activeTabId]) {
-                     terminalRefs.current[activeTabId].executeCommand(cmd);
-                  }
-                }} 
-                checkedSessionIds={checkedSessionIds}
-                sessions={sessions}
-                hasActiveSession={!!activeSession}
-              />
+            {/* Session Info Panel (CPU/Memory/Upload) */}
+            <div className="shrink-0 rounded-xl border border-zinc-800 overflow-hidden shadow-xl">
+               <SessionInfoPanel session={activeSession!} />
             </div>
-          </aside>
-        </Panel>
+          </>
+        ) : (
+          <div className="flex-1 bg-[#18181b] border border-zinc-800 rounded-xl flex flex-col items-center justify-center gap-4 text-zinc-500 p-8">
+             <TerminalSquare className="w-16 h-16 opacity-20 mb-4" />
+             <div className="text-center space-y-2">
+               <h3 className="text-zinc-300 font-medium tracking-widest text-xs uppercase font-bold">{t('app.noActiveSession')}</h3>
+               <p className="text-sm">{t('app.selectSessionHint')}</p>
+             </div>
+          </div>
+        )}
+      </main>
 
-        <PanelResizeHandle className="w-1.5 bg-[#18181b] hover:bg-indigo-500/40 transition-all cursor-col-resize z-50 relative">
-          <div className="absolute inset-y-0 -left-1 -right-1 z-0" />
-          <div className="h-12 w-0.5 bg-zinc-700 rounded-full mx-auto" />
-        </PanelResizeHandle>
-
-        {/* Main Content Area */}
-        <Panel id="main-content" defaultSize={50} minSize={30}>
-          <main className="h-full w-full flex flex-col p-3 min-w-0 bg-[#09090b]">
-            {tabs.length > 0 ? (
-              <PanelGroup orientation="vertical" id="vertical-content-layout" className="h-full w-full">
-                <Panel id="terminal-panel" defaultSize={70} minSize={20} className="flex flex-col gap-4">
-                  {/* Tabs Bar */}
-                  <div className="h-10 bg-[#18181b] border border-zinc-800 rounded-xl flex items-center px-2 shrink-0 overflow-x-auto custom-scrollbar gap-1">
-                     {tabs.map((tab) => (
-                       <div
-                         key={tab.id}
-                         onClick={() => {
-                           setActiveTabId(tab.id);
-                           setActiveSession(tab.session);
-                         }}
-                         className={cn(
-                           "px-4 py-1.5 rounded-lg text-xs font-mono font-bold uppercase tracking-widest flex items-center gap-2 cursor-pointer transition-colors whitespace-nowrap shrink-0",
-                           activeTabId === tab.id 
-                             ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30" 
-                             : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
-                         )}
-                       >
-                         <span className={cn("w-2 h-2 rounded-full", activeTabId === tab.id ? "bg-emerald-500" : "bg-zinc-600")}></span>
-                         {tab.session.name || tab.session.host}
-                         <button 
-                           onClick={(e) => closeTab(e, tab.id)}
-                           className="ml-2 hover:text-white p-0.5 rounded-md hover:bg-zinc-700/50"
-                         >
-                           <X className="w-3 h-3" />
-                         </button>
-                       </div>
-                     ))}
-                  </div>
-
-                  {/* Terminal Container */}
-                  <div className="flex-1 bg-black border border-zinc-800 rounded-xl p-4 font-mono text-sm overflow-hidden flex flex-col relative w-full h-full min-h-0">
-                     {tabs.map((tab) => (
-                       <div 
-                         key={tab.id} 
-                         className={cn(
-                           "w-full h-full flex flex-col min-h-0",
-                           activeTabId === tab.id ? "flex" : "hidden"
-                         )}
-                       >
-                         <TerminalComponent 
-                           ref={el => { if (el) terminalRefs.current[tab.id] = el; }}
-                           session={tab.session} 
-                           onContextUpdate={ctx => setTerminalContexts(prev => ({...prev, [tab.id]: ctx}))}
-                           historySize={aiSettings.commandHistorySize}
-                         />
-                       </div>
-                     ))}
-                  </div>
-                </Panel>
-
-                <PanelResizeHandle className="h-1.5 bg-[#18181b] hover:bg-indigo-500/40 transition-all cursor-row-resize z-50 relative">
-                  <div className="absolute inset-x-0 -top-1 -bottom-1 z-0" /> {/* Hit area expansion */}
-                  <div className="w-12 h-0.5 bg-zinc-700 rounded-full mx-auto" />
-                </PanelResizeHandle>
-                
-                {/* Session Info Panel (CPU/Memory/Upload) */}
-                <Panel id="info-panel" defaultSize={30} minSize={10} className="overflow-hidden shadow-xl border-t border-zinc-800 bg-[#18181b]/30">
-                  <div className="h-full w-full overflow-hidden flex flex-col pt-1">
-                     <SessionInfoPanel session={activeSession!} />
-                  </div>
-                </Panel>
-              </PanelGroup>
-            ) : (
-              <div className="flex-1 bg-[#18181b] border border-zinc-800 rounded-xl flex flex-col items-center justify-center gap-4 text-zinc-500 p-8">
-                 <TerminalSquare className="w-16 h-16 opacity-20 mb-4" />
-                 <div className="text-center space-y-2">
-                   <h3 className="text-zinc-300 font-medium tracking-widest text-xs uppercase font-bold">{t('app.noActiveSession')}</h3>
-                   <p className="text-sm">{t('app.selectSessionHint')}</p>
-                 </div>
-              </div>
-            )}
-          </main>
-        </Panel>
-
-        <PanelResizeHandle className="w-1.5 bg-[#18181b] hover:bg-indigo-500/40 transition-all cursor-col-resize z-50 relative">
-          <div className="absolute inset-y-0 -left-1 -right-1 z-0" />
-          <div className="h-12 w-0.5 bg-zinc-700 rounded-full mx-auto" />
-        </PanelResizeHandle>
-
-        {/* Right Sidebar: AI Chat */}
-        <Panel id="sidebar-right" defaultSize={25} minSize={15} maxSize={45}>
-          {tabs.length > 0 ? (
-            <aside className="w-full h-full flex flex-col gap-4 p-3 bg-[#18181b]/50 border-l border-zinc-800">
-              <div className="flex-1 bg-[#18181b] border border-zinc-800 rounded-xl flex flex-col overflow-hidden max-h-full">
-                <AIChatComponent 
-                  terminalContext={activeTabId ? terminalContexts[activeTabId] || '' : ''} 
-                  onExecuteCommand={(cmd) => {
-                     if (activeTabId && terminalRefs.current[activeTabId]) {
-                        terminalRefs.current[activeTabId].executeCommand(cmd);
-                     }
-                  }}
-                  aiSettings={aiSettings}
-                />
-              </div>
-            </aside>
-          ) : (
-            <aside className="w-full h-full flex flex-col gap-4 p-3 bg-[#18181b]/50 border-l border-zinc-800">
-               <div className="h-48 bg-[#18181b] border border-zinc-800 rounded-xl p-4 flex flex-col opacity-50">
-                 <h2 className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-2">{t('app.workspace')}</h2>
-                 <div className="flex-1 flex items-center justify-center text-sm text-zinc-600 font-mono">{t('app.standbyMode')}</div>
-               </div>
-               <div className="flex-1 bg-[#18181b] border border-zinc-800 rounded-xl p-4 flex flex-col items-center justify-center opacity-50 text-center gap-3">
-                  <Bot className="w-8 h-8 text-zinc-600" />
-                  <p className="text-xs text-zinc-500">{t('app.connectToChat')}</p>
-               </div>
-            </aside>
-          )}
-        </Panel>
-      </PanelGroup>
+      {/* Right Sidebar: AI Chat */}
+      {tabs.length > 0 ? (
+        <aside className="w-[340px] xl:w-[380px] shrink-0 flex flex-col gap-4">
+          <div className="flex-1 bg-[#18181b] border border-zinc-800 rounded-xl flex flex-col overflow-hidden max-h-full">
+            <AIChatComponent 
+              terminalContext={activeTabId ? terminalContexts[activeTabId] || '' : ''} 
+              onExecuteCommand={(cmd) => {
+                 if (activeTabId && terminalRefs.current[activeTabId]) {
+                    terminalRefs.current[activeTabId].executeCommand(cmd);
+                 }
+              }}
+              aiSettings={aiSettings}
+            />
+          </div>
+        </aside>
+      ) : (
+        <aside className="w-[340px] xl:w-[380px] shrink-0 flex flex-col gap-4">
+           <div className="h-48 bg-[#18181b] border border-zinc-800 rounded-xl p-4 flex flex-col opacity-50">
+             <h2 className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-2">{t('app.workspace')}</h2>
+             <div className="flex-1 flex items-center justify-center text-sm text-zinc-600 font-mono">{t('app.standbyMode')}</div>
+           </div>
+           <div className="flex-1 bg-[#18181b] border border-zinc-800 rounded-xl p-4 flex flex-col items-center justify-center opacity-50 text-center gap-3">
+              <Bot className="w-8 h-8 text-zinc-600" />
+              <p className="text-xs text-zinc-500">{t('app.connectToChat')}</p>
+           </div>
+        </aside>
+      )}
 
       {isEditingSession && (
         <SessionForm 
