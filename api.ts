@@ -155,13 +155,30 @@ export function createApiRouter(db: any) {
     }
   });
 
+  const normalizePrivateKey = (key: string | null | undefined): string | null | undefined => {
+    if (!key) return key;
+    let pk = key.replace(/\r\n/g, '\n').trim() + '\n';
+    if (pk.split('\n').length <= 3) {
+      const match = pk.match(/(-----BEGIN [^-]+-----)\s*(.*?)\s*(-----END [^-]+-----)/s);
+      if (match) {
+        const header = match[1];
+        const body = match[2].replace(/\s+/g, '');
+        const footer = match[3];
+        const bodyLines = body.match(/.{1,70}/g)?.join('\n') || body;
+        pk = `${header}\n${bodyLines}\n${footer}\n`;
+      }
+    }
+    return pk;
+  };
+
   router.post("/sessions", authenticateToken, async (req: any, res: any) => {
     try {
       const { id, name, host, port, username, authType, password, privateKey, passphrase, tags, notes } = req.body;
+      const formattedPrivateKey = normalizePrivateKey(privateKey);
       await db.run(
         `INSERT INTO sessions (id, userId, name, host, port, username, authType, password, privateKey, passphrase, tags, notes) 
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, req.user.id, name, host, port, username, authType, password, privateKey, passphrase, JSON.stringify(tags || []), notes]
+        [id, req.user.id, name, host, port, username, authType, password, formattedPrivateKey, passphrase, JSON.stringify(tags || []), notes]
       );
       res.json({ success: true });
     } catch (err: any) {
@@ -214,7 +231,7 @@ export function createApiRouter(db: any) {
             const config: any = { host: session.host, port: session.port, username: session.username, readyTimeout: 10000 };
             if (session.password) config.password = session.password;
             if (session.privateKey) {
-              config.privateKey = session.privateKey;
+              config.privateKey = normalizePrivateKey(session.privateKey);
               if (session.passphrase) config.passphrase = session.passphrase;
             }
             sshClient.connect(config);
@@ -234,10 +251,11 @@ export function createApiRouter(db: any) {
   router.put("/sessions/:id", authenticateToken, async (req: any, res: any) => {
     try {
         const { name, host, port, username, authType, password, privateKey, passphrase, tags, notes } = req.body;
+        const formattedPrivateKey = normalizePrivateKey(privateKey);
         await db.run(
           `UPDATE sessions SET name=?, host=?, port=?, username=?, authType=?, password=?, privateKey=?, passphrase=?, tags=?, notes=? 
            WHERE id=? AND userId=?`,
-          [name, host, port, username, authType, password, privateKey, passphrase, JSON.stringify(tags || []), notes, req.params.id, req.user.id]
+          [name, host, port, username, authType, password, formattedPrivateKey, passphrase, JSON.stringify(tags || []), notes, req.params.id, req.user.id]
         );
         res.json({ success: true });
     } catch (err: any) {

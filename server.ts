@@ -78,7 +78,19 @@ async function startServer() {
         if (config.password) {
           connectConfig.password = config.password;
         } else if (config.privateKey) {
-          connectConfig.privateKey = config.privateKey;
+          let pk: string = config.privateKey;
+          pk = pk.replace(/\r\n/g, '\n').trim() + '\n';
+          if (pk.split('\n').length <= 3) {
+            const match = pk.match(/(-----BEGIN [^-]+-----)\s*(.*?)\s*(-----END [^-]+-----)/s);
+            if (match) {
+               const header = match[1];
+               const body = match[2].replace(/\s+/g, '');
+               const footer = match[3];
+               const bodyLines = body.match(/.{1,70}/g)?.join('\n') || body;
+               pk = `${header}\n${bodyLines}\n${footer}\n`;
+            }
+          }
+          connectConfig.privateKey = pk;
           if (config.passphrase) {
             connectConfig.passphrase = config.passphrase;
           }
