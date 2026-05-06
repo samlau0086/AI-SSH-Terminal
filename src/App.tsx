@@ -140,10 +140,16 @@ export default function App() {
   };
 
   const openTab = (session: Session) => {
-    setActiveSession(session);
-    const newTabId = uuidv4();
-    setTabs(prev => [...prev, { id: newTabId, session }]);
-    setActiveTabId(newTabId);
+    const existingTab = tabs.find(t => t.session.id === session.id);
+    if (existingTab) {
+      setActiveTabId(existingTab.id);
+      setActiveSession(existingTab.session);
+    } else {
+      setActiveSession(session);
+      const newTabId = uuidv4();
+      setTabs(prev => [...prev, { id: newTabId, session }]);
+      setActiveTabId(newTabId);
+    }
   };
 
   const closeTab = (e: React.MouseEvent, tabId: string) => {
