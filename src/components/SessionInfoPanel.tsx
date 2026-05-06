@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Session } from '../App';
 import { Activity, Upload, HardDrive, Cpu, Check, X, AlertCircle, Folder, File as FileIcon, Download, RefreshCw, ChevronRight, Trash } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { cn } from '../lib/utils';
 
 interface Props {
   session: Session;
@@ -36,6 +37,45 @@ export default function SessionInfoPanel({ session }: Props) {
   const [fileError, setFileError] = useState('');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Horizontal resizing logic
+  const [statsWidth, setStatsWidth] = useState(300);
+  const [isResizing, setIsResizing] = useState(false);
+
+  const startResizing = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+  }, []);
+
+  const stopResizing = useCallback(() => {
+    setIsResizing(false);
+  }, []);
+
+  const resize = useCallback((e: MouseEvent) => {
+    if (isResizing && containerRef.current) {
+      const containerRect = containerRef.current.getBoundingClientRect();
+      const newWidth = e.clientX - containerRect.left;
+      // Boundaries
+      if (newWidth > 200 && newWidth < containerRect.width - 300) {
+        setStatsWidth(newWidth);
+      }
+    }
+  }, [isResizing]);
+
+  useEffect(() => {
+    if (isResizing) {
+      window.addEventListener('mousemove', resize);
+      window.addEventListener('mouseup', stopResizing);
+    } else {
+      window.removeEventListener('mousemove', resize);
+      window.removeEventListener('mouseup', stopResizing);
+    }
+    return () => {
+      window.removeEventListener('mousemove', resize);
+      window.removeEventListener('mouseup', stopResizing);
+    };
+  }, [isResizing, resize]);
 
   useEffect(() => {
     if (!token || !session?.id) return;
@@ -236,9 +276,18 @@ export default function SessionInfoPanel({ session }: Props) {
   }
 
   return (
-    <div className="flex border-t border-zinc-800 bg-[#09090b] text-xs h-48 shrink-0">
+    <div 
+      ref={containerRef}
+      className={cn(
+        "flex bg-[#09090b] text-xs h-full w-full overflow-hidden",
+        isResizing && "cursor-col-resize select-none border-indigo-500/20"
+      )}
+    >
       {/* Stats Section */}
-      <div className="w-1/3 border-r border-zinc-800 p-4 flex flex-col justify-center">
+      <div 
+        style={{ width: `${statsWidth}px` }} 
+        className="shrink-0 p-4 flex flex-col justify-center"
+      >
          <h3 className="text-[10px] uppercase font-bold text-zinc-500 tracking-widest mb-3 flex items-center gap-2">
             <Activity className="w-3 h-3 text-emerald-400" />
             Server Performance
@@ -266,8 +315,22 @@ export default function SessionInfoPanel({ session }: Props) {
          </div>
       </div>
 
+      {/* Internal Resizer */}
+      <div 
+        onMouseDown={startResizing}
+        className={cn(
+          "w-4 group relative cursor-col-resize flex items-center justify-center transition-all bg-transparent z-10",
+          isResizing && "bg-indigo-500/5"
+        )}
+      >
+        <div className={cn(
+          "w-[1px] h-32 bg-zinc-800 transition-colors group-hover:bg-indigo-500/50 group-hover:h-full",
+          isResizing && "bg-indigo-500 h-full"
+        )} />
+      </div>
+
       {/* File Explorer Section */}
-      <div className="w-2/3 flex flex-col relative overflow-hidden">
+      <div className="flex-1 flex flex-col relative overflow-hidden">
          {/* Toolbar */}
          <div className="p-2 border-b border-zinc-800 flex items-center gap-2 bg-[#000000]">
              <Folder className="w-4 h-4 text-indigo-400 shrink-0" />

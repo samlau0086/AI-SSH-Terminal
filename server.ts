@@ -15,7 +15,13 @@ async function startServer() {
   const PORT = process.env.APP_PORT ? parseInt(process.env.APP_PORT, 10) : 3000;
   const httpServer = createServer(app);
   
-  const db = await initDb();
+  let db;
+  try {
+    db = await initDb();
+  } catch (err) {
+    console.error("Failed to initialize database:", err);
+    process.exit(1);
+  }
   
   const io = new Server(httpServer, {
     cors: {

@@ -33,15 +33,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       fetch('/api/auth/me', {
         headers: { 'Authorization': `Bearer ${token}` }
       })
-      .then(res => {
+      .then(async res => {
         if (res.ok) return res.json();
+        const errData = await res.json().catch(() => ({}));
+        console.error(`Auth verification failed: ${res.status} ${res.statusText}`, errData);
         throw new Error('Not authenticated');
       })
       .then(data => {
         setUser(data.user);
         setIsLoading(false);
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error('Failed to fetch /api/auth/me:', err);
         setToken(null);
         setUser(null);
         localStorage.removeItem('ai-ssh-token');

@@ -88,6 +88,70 @@ export default function App() {
   const [checkedSessionIds, setCheckedSessionIds] = useState<string[]>([]);
   const terminalRefs = useRef<Record<string, TerminalRef>>({});
 
+  // Resizable Sidebars Logic
+  const [leftSidebarWidth, setLeftSidebarWidth] = useState(350);
+  const [rightSidebarWidth, setRightSidebarWidth] = useState(380);
+  const [bottomPanelHeight, setBottomPanelHeight] = useState(180);
+  const [isResizingLeft, setIsResizingLeft] = useState(false);
+  const [isResizingRight, setIsResizingRight] = useState(false);
+  const [isResizingMain, setIsResizingMain] = useState(false);
+
+  const startResizingLeft = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizingLeft(true);
+  }, []);
+
+  const startResizingRight = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizingRight(true);
+  }, []);
+
+  const startResizingMain = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizingMain(true);
+  }, []);
+
+  const stopResizing = useCallback(() => {
+    setIsResizingLeft(false);
+    setIsResizingRight(false);
+    setIsResizingMain(false);
+  }, []);
+
+  const resize = useCallback((e: MouseEvent) => {
+    if (isResizingLeft) {
+      const newWidth = e.clientX - 16; 
+      if (newWidth > 200 && newWidth < 600) {
+        setLeftSidebarWidth(newWidth);
+      }
+    }
+    if (isResizingRight) {
+      const newWidth = window.innerWidth - e.clientX - 16;
+      if (newWidth > 250 && newWidth < 600) {
+        setRightSidebarWidth(newWidth);
+      }
+    }
+    if (isResizingMain) {
+      const newHeight = window.innerHeight - e.clientY - 32; // Adjust for p-4 padding
+      if (newHeight > 100 && newHeight < 500) {
+        setBottomPanelHeight(newHeight);
+      }
+    }
+  }, [isResizingLeft, isResizingRight, isResizingMain]);
+
+  useEffect(() => {
+    if (isResizingLeft || isResizingRight || isResizingMain) {
+      window.addEventListener('mousemove', resize);
+      window.addEventListener('mouseup', stopResizing);
+    } else {
+      window.removeEventListener('mousemove', resize);
+      window.removeEventListener('mouseup', stopResizing);
+    }
+    return () => {
+      window.removeEventListener('mousemove', resize);
+      window.removeEventListener('mouseup', stopResizing);
+    };
+  }, [isResizingLeft, isResizingRight, isResizingMain, resize, stopResizing]);
+
   const fetchSessions = useCallback(async () => {
     if (!token) return;
     try {
@@ -97,9 +161,12 @@ export default function App() {
       if (res.ok) {
         const data = await res.json();
         setSessions(data);
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        console.error(`Fetch sessions failed: ${res.status} ${res.statusText}`, errData);
       }
     } catch (err) {
-      console.error('Failed to fetch sessions', err);
+      console.error('Failed to fetch /api/sessions:', err);
     }
   }, [token]);
 
@@ -135,9 +202,12 @@ export default function App() {
           setSessions(prev => prev.map(s => s.id === id ? payload : s));
         }
         setIsEditingSession(null);
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        console.error(`Save session failed: ${res.status} ${res.statusText}`, errData);
       }
     } catch (err) {
-      console.error('Failed to save session', err);
+      console.error(`Failed to save session to ${isNew ? '/api/sessions' : `/api/sessions/${id}`}:`, err);
     }
   };
 
@@ -230,9 +300,17 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen w-full bg-[#09090b] text-zinc-400 font-sans p-4 gap-4 overflow-hidden">
+    <div className={cn(
+      "flex h-screen w-full bg-[#09090b] text-zinc-400 font-sans p-4 gap-0 overflow-hidden",
+      (isResizingLeft || isResizingRight || isResizingMain) && "select-none",
+      (isResizingLeft || isResizingRight) && "cursor-col-resize",
+      isResizingMain && "cursor-row-resize"
+    )}>
       {/* Left Sidebar: Sessions */}
-      <aside className="w-[350px] flex flex-col gap-4 shrink-0">
+      <aside 
+        style={{ width: `${leftSidebarWidth}px` }} 
+        className="flex flex-col gap-4 shrink-0"
+      >
         <div className="h-12 bg-[#18181b] border border-zinc-800 rounded-xl flex items-center px-4 gap-3 shrink-0">
           <div className="w-3 h-3 rounded-full bg-red-500"></div>
           <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
@@ -420,12 +498,26 @@ export default function App() {
         </div>
       </aside>
 
+      {/* Left Resizer */}
+      <div 
+        onMouseDown={startResizingLeft}
+        className={cn(
+          "w-4 group relative cursor-col-resize flex items-center justify-center transition-all bg-transparent z-10",
+          isResizingLeft && "bg-indigo-500/5"
+        )}
+      >
+        <div className={cn(
+          "w-[1px] h-32 bg-zinc-800 transition-colors group-hover:bg-indigo-500/50 group-hover:h-full",
+          isResizingLeft && "bg-indigo-500 h-full"
+        )} />
+      </div>
+
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col gap-4 min-w-0">
+      <main className="flex-1 flex flex-col gap-0 min-w-0">
         {tabs.length > 0 ? (
           <>
             {/* Tabs Bar */}
-            <div className="h-10 bg-[#18181b] border border-zinc-800 rounded-xl flex items-center px-2 shrink-0 overflow-x-auto custom-scrollbar gap-1">
+            <div className="h-10 bg-[#18181b] border border-zinc-800 rounded-xl flex items-center px-2 shrink-0 overflow-x-auto custom-scrollbar gap-1 mb-4">
                {tabs.map((tab) => (
                  <div
                    key={tab.id}
@@ -453,7 +545,7 @@ export default function App() {
             </div>
 
             {/* Terminal Container */}
-            <div className="flex-1 bg-black border border-zinc-800 rounded-xl p-4 font-mono text-sm overflow-hidden flex flex-col relative w-full h-full min-h-0">
+            <div className="flex-1 bg-black border border-zinc-800 rounded-xl p-4 font-mono text-sm overflow-hidden flex flex-col relative w-full min-h-0">
                {tabs.map((tab) => (
                  <div 
                    key={tab.id} 
@@ -471,9 +563,26 @@ export default function App() {
                  </div>
                ))}
             </div>
+
+            {/* Main Content Resizer */}
+            <div 
+              onMouseDown={startResizingMain}
+              className={cn(
+                "h-4 group relative cursor-row-resize flex items-center justify-center transition-all bg-transparent z-10",
+                isResizingMain && "bg-indigo-500/5"
+              )}
+            >
+              <div className={cn(
+                "h-[1px] w-32 bg-zinc-800 transition-colors group-hover:bg-indigo-500/50 group-hover:w-full",
+                isResizingMain && "bg-indigo-500 w-full"
+              )} />
+            </div>
             
             {/* Session Info Panel (CPU/Memory/Upload) */}
-            <div className="shrink-0 rounded-xl border border-zinc-800 overflow-hidden shadow-xl">
+            <div 
+              style={{ height: `${bottomPanelHeight}px` }}
+              className="shrink-0 rounded-xl border border-zinc-800 overflow-hidden shadow-xl"
+            >
                <SessionInfoPanel session={activeSession!} />
             </div>
           </>
@@ -488,9 +597,26 @@ export default function App() {
         )}
       </main>
 
+      {/* Right Resizer */}
+      <div 
+        onMouseDown={startResizingRight}
+        className={cn(
+          "w-4 group relative cursor-col-resize flex items-center justify-center transition-all bg-transparent z-10",
+          isResizingRight && "bg-indigo-500/5"
+        )}
+      >
+        <div className={cn(
+          "w-[1px] h-32 bg-zinc-800 transition-colors group-hover:bg-indigo-500/50 group-hover:h-full",
+          isResizingRight && "bg-indigo-500 h-full"
+        )} />
+      </div>
+
       {/* Right Sidebar: AI Chat */}
       {tabs.length > 0 ? (
-        <aside className="w-[340px] xl:w-[380px] shrink-0 flex flex-col gap-4">
+        <aside 
+          style={{ width: `${rightSidebarWidth}px` }}
+          className="shrink-0 flex flex-col gap-4"
+        >
           <div className="flex-1 bg-[#18181b] border border-zinc-800 rounded-xl flex flex-col overflow-hidden max-h-full">
             <AIChatComponent 
               terminalContext={activeTabId ? terminalContexts[activeTabId] || '' : ''} 
@@ -504,7 +630,10 @@ export default function App() {
           </div>
         </aside>
       ) : (
-        <aside className="w-[340px] xl:w-[380px] shrink-0 flex flex-col gap-4">
+        <aside 
+          style={{ width: `${rightSidebarWidth}px` }}
+          className="shrink-0 flex flex-col gap-4"
+        >
            <div className="h-48 bg-[#18181b] border border-zinc-800 rounded-xl p-4 flex flex-col opacity-50">
              <h2 className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-2">{t('app.workspace')}</h2>
              <div className="flex-1 flex items-center justify-center text-sm text-zinc-600 font-mono">{t('app.standbyMode')}</div>
