@@ -615,7 +615,7 @@ export default function App() {
       {tabs.length > 0 ? (
         <aside 
           style={{ width: `${rightSidebarWidth}px` }}
-          className="shrink-0 flex flex-col gap-4"
+          className="shrink-0 flex flex-col gap-4 relative z-20"
         >
           <div className="flex-1 bg-[#18181b] border border-zinc-800 rounded-xl flex flex-col overflow-hidden max-h-full">
             <AIChatComponent 
@@ -632,7 +632,7 @@ export default function App() {
       ) : (
         <aside 
           style={{ width: `${rightSidebarWidth}px` }}
-          className="shrink-0 flex flex-col gap-4"
+          className="shrink-0 flex flex-col gap-4 relative z-20"
         >
            <div className="h-48 bg-[#18181b] border border-zinc-800 rounded-xl p-4 flex flex-col opacity-50">
              <h2 className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-2">{t('app.workspace')}</h2>
