@@ -75,5 +75,5 @@ jobs:
             pm2 flush ai-ssh-terminal || true
             
             # 启动服务，注入必要的环境变量
-            NODE_ENV=production APP_PORT=3020 GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}" pm2 start dist/server.js --name "ai-ssh-terminal" --update-env
+            NODE_ENV=production PORT=3020 GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}" pm2 start dist/server.js --name "ai-ssh-terminal" --update-env
             pm2 save
