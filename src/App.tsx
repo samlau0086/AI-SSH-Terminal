@@ -232,7 +232,7 @@ export default function App() {
   return (
     <div className="flex h-screen w-full bg-[#09090b] text-zinc-400 font-sans p-4 gap-4 overflow-hidden">
       {/* Left Sidebar: Sessions */}
-      <aside className="w-64 flex flex-col gap-4 shrink-0">
+      <aside className="w-[350px] flex flex-col gap-4 shrink-0">
         <div className="h-12 bg-[#18181b] border border-zinc-800 rounded-xl flex items-center px-4 gap-3 shrink-0">
           <div className="w-3 h-3 rounded-full bg-red-500"></div>
           <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
@@ -274,7 +274,7 @@ export default function App() {
           </button>
         </div>
         
-        <div className="flex-1 bg-[#18181b] border border-zinc-800 rounded-xl p-4 flex flex-col gap-4 overflow-hidden">
+        <div className="flex-1 bg-[#18181b] border border-zinc-800 rounded-xl p-4 flex flex-col gap-4">
           <div className="flex justify-between items-center shrink-0">
             <h2 className="text-xs font-bold uppercase tracking-widest text-zinc-500">{t('app.savedSessions')}</h2>
             <div className="flex items-center gap-1">

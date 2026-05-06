@@ -165,7 +165,7 @@ export default function QuickCommands({ onExecuteActive, checkedSessionIds, sess
           </button>
           
           {isDropdownOpen && (
-            <div className="absolute bottom-[calc(100%+4px)] left-0 w-full sm:w-[350px] bg-[#18181b] border border-zinc-700/80 rounded-lg shadow-2xl overflow-hidden flex flex-col z-[100]">
+            <div className="absolute bottom-[calc(100%+4px)] left-0 w-full bg-[#18181b] border border-zinc-700/80 rounded-lg shadow-2xl overflow-hidden flex flex-col z-[100]">
               <div className="p-2 border-b border-zinc-800/80 flex items-center gap-2 bg-[#09090b]/50">
                 <Search className="w-4 h-4 text-zinc-500 shrink-0 ml-1" />
                 <input 
