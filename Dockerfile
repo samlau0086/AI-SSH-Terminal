@@ -1,7 +1,7 @@
 FROM node:20-alpine
 
 # Install SQLite and python3 for node-gyp if needed (some dependencies might need it)
-RUN apk add --no-cache python3 make g++ sqlite
+RUN apk add --no-cache python3 py3-setuptools make g++ sqlite
 
 WORKDIR /app
 
