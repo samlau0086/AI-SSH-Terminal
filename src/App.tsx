@@ -5,6 +5,7 @@ import { cn } from './lib/utils';
 import TerminalComponent, { TerminalRef } from './components/TerminalComponent';
 import QuickCommands from './components/QuickCommands';
 import { CheckSquare, Square } from 'lucide-react';
+import SessionInfoPanel from './components/SessionInfoPanel';
 import AIChatComponent from './components/AIChatComponent';
 import SessionForm from './components/SessionForm';
 import SettingsModal, { AISettings } from './components/SettingsModal';
@@ -328,12 +329,17 @@ export default function App() {
             </div>
 
             {/* Terminal Window */}
-            <div className="flex-1 bg-black border border-zinc-800 rounded-xl p-4 font-mono text-sm overflow-hidden flex flex-col relative w-full h-full max-h-full">
+            <div className="flex-1 bg-black border border-zinc-800 rounded-xl p-4 font-mono text-sm overflow-hidden flex flex-col relative w-full h-full min-h-0">
               <TerminalComponent 
                 ref={terminalRef}
                 session={activeSession} 
                 onContextUpdate={setTerminalContext}
               />
+            </div>
+            
+            {/* Session Info Panel (CPU/Memory/Upload) */}
+            <div className="shrink-0 rounded-xl border border-zinc-800 overflow-hidden shadow-xl">
+               <SessionInfoPanel session={activeSession} />
             </div>
           </>
         ) : (

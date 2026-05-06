@@ -3,10 +3,13 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { open } from 'sqlite';
 import sqlite3 from 'sqlite3';
+import multer from 'multer';
+import fs from 'fs';
 
 import { Client } from "ssh2";
 
 const JWT_SECRET = process.env.JWT_SECRET || "super-secret-key-please-change-it-in-production";
+const upload = multer({ dest: '/tmp/uploads/' });
 
 export async function initDb() {
   const db = await open({
@@ -228,68 +231,6 @@ export function createApiRouter(db: any) {
     }
   });
 
-  router.post("/sessions/execute", authenticateToken, async (req: any, res: any) => {
-    try {
-      const { sessionIds, command } = req.body;
-      if (!sessionIds || !sessionIds.length || !command) {
-        return res.status(400).json({ error: "Missing sessionIds or command" });
-      }
-
-      const placeholders = sessionIds.map(() => '?').join(',');
-      const sessions = await db.all(`SELECT * FROM sessions WHERE id IN (${placeholders}) AND userId = ?`, [...sessionIds, req.user.id]);
-      
-      const results = await Promise.all(sessions.map((session: any) => {
-        return new Promise((resolve) => {
-          const sshClient = new Client();
-          let output = '';
-          let executionTimeout = setTimeout(() => {
-            sshClient.end();
-            resolve({ sessionId: session.id, error: 'Command execution timed out' });
-          }, 30000); // 30 second timeout
-          
-          sshClient.on('ready', () => {
-            sshClient.exec(command, (err, stream) => {
-              if (err) {
-                 clearTimeout(executionTimeout);
-                 sshClient.end();
-                 return resolve({ sessionId: session.id, error: err.message });
-              }
-              stream.on('close', (code: any, signal: any) => {
-                clearTimeout(executionTimeout);
-                sshClient.end();
-                resolve({ sessionId: session.id, output, code });
-              }).on('data', (data: any) => {
-                output += data.toString('utf-8');
-              }).stderr.on('data', (data: any) => {
-                output += data.toString('utf-8');
-              });
-            });
-          }).on('error', (err) => {
-            clearTimeout(executionTimeout);
-            resolve({ sessionId: session.id, error: err.message });
-          });
-
-          try {
-            const config: any = { host: session.host, port: session.port, username: session.username };
-            if (session.password) config.password = session.password;
-            if (session.privateKey) {
-              config.privateKey = session.privateKey;
-              if (session.passphrase) config.passphrase = session.passphrase;
-            }
-            sshClient.connect(config);
-          } catch(err: any) {
-            clearTimeout(executionTimeout);
-            resolve({ sessionId: session.id, error: err.message });
-          }
-        });
-      }));
-
-      res.json({ results });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
   router.put("/sessions/:id", authenticateToken, async (req: any, res: any) => {
     try {
         const { name, host, port, username, authType, password, privateKey, passphrase, tags, notes } = req.body;
@@ -310,6 +251,105 @@ export function createApiRouter(db: any) {
         res.json({ success: true });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
+    }
+  });
+
+  router.post("/sessions/:id/upload", authenticateToken, upload.single('file'), async (req: any, res: any) => {
+    try {
+       const session = await db.get(`SELECT * FROM sessions WHERE id = ? AND userId = ?`, [req.params.id, req.user.id]);
+       if (!session) return res.status(404).json({ error: "Session not found" });
+       
+       const file = req.file;
+       if (!file) return res.status(400).json({ error: "No file uploaded" });
+
+       const targetPath = req.body.path || `./${file.originalname}`;
+
+       const sshClient = new Client();
+       sshClient.on('ready', () => {
+           sshClient.sftp((err, sftp) => {
+               if (err) {
+                   sshClient.end();
+                   fs.unlink(file.path, () => {});
+                   return res.status(500).json({ error: err.message });
+               }
+               
+               // transfer file
+               sftp.fastPut(file.path, targetPath, (putErr) => {
+                   sshClient.end();
+                   fs.unlink(file.path, () => {}); // clean up local temp file
+                   if (putErr) {
+                       return res.status(500).json({ error: putErr.message });
+                   }
+                   res.json({ success: true, message: `File uploaded to ${targetPath}` });
+               });
+           });
+       }).on('error', (err) => {
+           fs.unlink(file.path, () => {});
+           res.status(500).json({ error: err.message });
+       });
+
+       try {
+         const config: any = { host: session.host, port: session.port, username: session.username };
+         if (session.password) config.password = session.password;
+         if (session.privateKey) {
+           config.privateKey = session.privateKey;
+           if (session.passphrase) config.passphrase = session.passphrase;
+         }
+         sshClient.connect(config);
+       } catch(err: any) {
+          fs.unlink(file.path, () => {});
+          res.status(500).json({ error: err.message });
+       }
+    } catch (err: any) {
+       res.status(500).json({ error: err.message });
+    }
+  });
+
+  router.get("/sessions/:id/stats", authenticateToken, async (req: any, res: any) => {
+    try {
+       const session = await db.get(`SELECT * FROM sessions WHERE id = ? AND userId = ?`, [req.params.id, req.user.id]);
+       if (!session) return res.status(404).json({ error: "Session not found" });
+
+       const sshClient = new Client();
+       sshClient.on('ready', () => {
+           sshClient.exec("top -b -n 1 | head -n 5 && free -m", (err, stream) => {
+               if (err) {
+                   sshClient.end();
+                   return res.status(500).json({ error: err.message });
+               }
+               let output = '';
+               let executionTimeout = setTimeout(() => {
+                   sshClient.end();
+                   if (!res.headersSent) res.status(500).json({ error: 'Command execution timed out' });
+               }, 10000); // 10 second timeout
+
+               stream.on('close', () => {
+                   clearTimeout(executionTimeout);
+                   sshClient.end();
+                   if (!res.headersSent) res.json({ output });
+               }).on('data', (data: any) => {
+                   output += data.toString('utf-8');
+               }).stderr.on('data', (data: any) => {
+                   output += data.toString('utf-8');
+               });
+           });
+       }).on('error', (err) => {
+           if (!res.headersSent) res.status(500).json({ error: err.message });
+       });
+
+       try {
+         const config: any = { host: session.host, port: session.port, username: session.username };
+         if (session.password) config.password = session.password;
+         if (session.privateKey) {
+           config.privateKey = session.privateKey;
+           if (session.passphrase) config.passphrase = session.passphrase;
+         }
+         sshClient.connect(config);
+       } catch(err: any) {
+          if (!res.headersSent) res.status(500).json({ error: err.message });
+       }
+    } catch (err: any) {
+       if (!res.headersSent) res.status(500).json({ error: err.message });
     }
   });
 
