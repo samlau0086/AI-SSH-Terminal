@@ -231,10 +231,10 @@ export default function App() {
   }
 
   return (
-    <div className="h-screen w-full bg-[#09090b] text-zinc-400 font-sans overflow-hidden flex">
-      <PanelGroup orientation="horizontal" id="horizontal-main-layout" className="flex-1">
+    <div className="h-screen w-full bg-[#09090b] text-zinc-400 font-sans overflow-hidden">
+      <PanelGroup orientation="horizontal" id="main-group" className="h-full w-full">
         {/* Left Sidebar: Sessions */}
-        <Panel id="sidebar-left" defaultSize={25} minSize={20} maxSize={40} collapsible>
+        <Panel id="sidebar-left" defaultSize={25} minSize={15} maxSize={45}>
           <aside className="h-full flex flex-col gap-3 p-3 bg-[#18181b]/50 border-r border-zinc-800">
             <div className="h-12 bg-[#18181b] border border-zinc-800 rounded-xl flex items-center px-4 gap-3 shrink-0">
               <div className="w-3 h-3 rounded-full bg-red-500"></div>
@@ -424,7 +424,10 @@ export default function App() {
           </aside>
         </Panel>
 
-        <PanelResizeHandle className="w-1 bg-[#18181b] hover:bg-indigo-500/50 transition-colors cursor-col-resize z-50" />
+        <PanelResizeHandle className="w-1.5 bg-[#18181b] hover:bg-indigo-500/40 transition-all cursor-col-resize z-50 relative">
+          <div className="absolute inset-y-0 -left-1 -right-1 z-0" />
+          <div className="h-12 w-0.5 bg-zinc-700 rounded-full mx-auto" />
+        </PanelResizeHandle>
 
         {/* Main Content Area */}
         <Panel id="main-content" defaultSize={50} minSize={30}>
@@ -481,10 +484,13 @@ export default function App() {
                   </div>
                 </Panel>
 
-                <PanelResizeHandle className="h-1 bg-[#18181b] hover:bg-indigo-500/50 transition-colors cursor-row-resize z-50" />
+                <PanelResizeHandle className="h-1.5 bg-[#18181b] hover:bg-indigo-500/40 transition-all cursor-row-resize z-50 relative">
+                  <div className="absolute inset-x-0 -top-1 -bottom-1 z-0" /> {/* Hit area expansion */}
+                  <div className="w-12 h-0.5 bg-zinc-700 rounded-full mx-auto" />
+                </PanelResizeHandle>
                 
                 {/* Session Info Panel (CPU/Memory/Upload) */}
-                <Panel id="info-panel" defaultSize={25} minSize={10} collapsible className="overflow-hidden shadow-xl border-t border-zinc-800 bg-[#18181b]/30">
+                <Panel id="info-panel" defaultSize={30} minSize={10} className="overflow-hidden shadow-xl border-t border-zinc-800 bg-[#18181b]/30">
                   <div className="h-full w-full overflow-hidden flex flex-col pt-1">
                      <SessionInfoPanel session={activeSession!} />
                   </div>
@@ -502,10 +508,13 @@ export default function App() {
           </main>
         </Panel>
 
-        <PanelResizeHandle className="w-1 bg-[#18181b] hover:bg-indigo-500/50 transition-colors cursor-col-resize z-50" />
+        <PanelResizeHandle className="w-1.5 bg-[#18181b] hover:bg-indigo-500/40 transition-all cursor-col-resize z-50 relative">
+          <div className="absolute inset-y-0 -left-1 -right-1 z-0" />
+          <div className="h-12 w-0.5 bg-zinc-700 rounded-full mx-auto" />
+        </PanelResizeHandle>
 
         {/* Right Sidebar: AI Chat */}
-        <Panel id="sidebar-right" defaultSize={25} minSize={20} maxSize={40} collapsible>
+        <Panel id="sidebar-right" defaultSize={25} minSize={15} maxSize={45}>
           {tabs.length > 0 ? (
             <aside className="w-full h-full flex flex-col gap-4 p-3 bg-[#18181b]/50 border-l border-zinc-800">
               <div className="flex-1 bg-[#18181b] border border-zinc-800 rounded-xl flex flex-col overflow-hidden max-h-full">
