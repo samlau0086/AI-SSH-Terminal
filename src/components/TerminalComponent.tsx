@@ -128,6 +128,7 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, onContextUp
       window.addEventListener('resize', handleResize);
     } else {
       xtermRef.current.clear();
+      outputBuffer.current = [];
     }
 
     // Connect to backend

@@ -42,8 +42,43 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [activeSession, setActiveSession] = useState<Session | null>(null);
-  const [tabs, setTabs] = useState<{id: string, session: Session}[]>([]);
-  const [activeTabId, setActiveTabId] = useState<string | null>(null);
+  const [tabs, setTabs] = useState<{id: string, session: Session}[]>(() => {
+    const saved = localStorage.getItem('ai-ssh-tabs');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        return [];
+      }
+    }
+    return [];
+  });
+  const [activeTabId, setActiveTabId] = useState<string | null>(() => {
+    return localStorage.getItem('ai-ssh-active-tab') || null;
+  });
+  
+  // Restore active session on load if tabs exist
+  useEffect(() => {
+    if (tabs.length > 0 && activeTabId) {
+      const tab = tabs.find(t => t.id === activeTabId);
+      if (tab) {
+        setActiveSession(tab.session);
+      }
+    }
+  }, []); // Only on mount
+
+  useEffect(() => {
+    localStorage.setItem('ai-ssh-tabs', JSON.stringify(tabs));
+  }, [tabs]);
+
+  useEffect(() => {
+    if (activeTabId) {
+      localStorage.setItem('ai-ssh-active-tab', activeTabId);
+    } else {
+      localStorage.removeItem('ai-ssh-active-tab');
+    }
+  }, [activeTabId]);
+
   const [isEditingSession, setIsEditingSession] = useState<Session | Partial<Session> | null>(null);
   const [terminalContexts, setTerminalContexts] = useState<Record<string, string>>({});
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
