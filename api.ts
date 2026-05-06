@@ -72,7 +72,12 @@ export function createApiRouter(db: any) {
   // Middleware to authenticate JWT
   const authenticateToken = (req: any, res: any, next: any) => {
     const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
+    let token = authHeader && authHeader.split(' ')[1];
+    
+    if (!token && req.query.token) {
+      token = req.query.token;
+    }
+    
     if (token == null) return res.sendStatus(401);
 
     jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
@@ -475,9 +480,13 @@ export function createApiRouter(db: any) {
                        if (!res.headersSent) res.status(500).json({ error: readErr.message });
                    });
 
+                   res.setHeader('Content-Type', 'application/octet-stream');
                    res.setHeader('Content-Disposition', `attachment; filename="${actualPath.split('/').pop()}"`);
                    readStream.pipe(res);
-                   readStream.on('end', () => {
+                   res.on('finish', () => {
+                       sshClient.end();
+                   });
+                   res.on('close', () => {
                        sshClient.end();
                    });
                });

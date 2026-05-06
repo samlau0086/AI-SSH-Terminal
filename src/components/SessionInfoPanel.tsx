@@ -156,29 +156,15 @@ export default function SessionInfoPanel({ session }: Props) {
     if (!fullPath.endsWith('/')) fullPath += '/';
     fullPath += filename;
     
-    // Since we are using jwt, we can't easily use a simple <a> tag unless we pass the token in URL
-    // So we'll fetch the blob then trigger download
-    fetch(`/api/sessions/${session.id}/download?path=${encodeURIComponent(fullPath)}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-    .then(res => {
-       if (!res.ok) throw new Error('Download failed');
-       return res.blob();
-    })
-    .then(blob => {
-       const url = window.URL.createObjectURL(blob);
-       const a = document.createElement('a');
-       a.style.display = 'none';
-       a.href = url;
-       a.download = filename;
-       document.body.appendChild(a);
-       a.click();
-       window.URL.revokeObjectURL(url);
-    })
-    .catch(err => {
-       setFileError(err.message);
-       setTimeout(() => setFileError(''), 3000);
-    });
+    // Pass JWT via query parameter and let the browser's native download manager handle it.
+    // This avoids large files crashing the browser via `.blob()` fetching.
+    const downloadUrl = `/api/sessions/${session.id}/download?path=${encodeURIComponent(fullPath)}&token=${encodeURIComponent(token)}`;
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
   const isDirectory = (file: RemoteFile) => {
