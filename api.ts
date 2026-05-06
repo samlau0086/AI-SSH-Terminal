@@ -112,7 +112,7 @@ export function createApiRouter(db: any) {
       if (err.message.includes('UNIQUE')) {
         res.status(400).json({ error: "Username already exists" });
       } else {
-        res.status(500).json({ error: err.message });
+        res.status(500).json({ error: err?.message || String(err) });
       }
     }
   });
@@ -211,7 +211,7 @@ export function createApiRouter(db: any) {
           });
 
           try {
-            const config: any = { host: session.host, port: session.port, username: session.username };
+            const config: any = { host: session.host, port: session.port, username: session.username, readyTimeout: 10000 };
             if (session.password) config.password = session.password;
             if (session.privateKey) {
               config.privateKey = session.privateKey;
@@ -296,13 +296,13 @@ export function createApiRouter(db: any) {
                    });
                });
            });
-       }).on('error', (err) => {
+       }).on('error', (err: any) => {
            fs.unlink(file.path, () => {});
-           res.status(500).json({ error: err.message });
+           res.status(500).json({ error: err?.message || String(err) });
        });
 
        try {
-         const config: any = { host: session.host, port: session.port, username: session.username };
+         const config: any = { host: session.host, port: session.port, username: session.username, readyTimeout: 10000 };
          if (session.password) config.password = session.password;
          if (session.privateKey) {
            config.privateKey = session.privateKey;
@@ -311,10 +311,10 @@ export function createApiRouter(db: any) {
          sshClient.connect(config);
        } catch(err: any) {
           fs.unlink(file.path, () => {});
-          res.status(500).json({ error: err.message });
+          res.status(500).json({ error: err?.message || String(err) });
        }
     } catch (err: any) {
-       res.status(500).json({ error: err.message });
+       res.status(500).json({ error: err?.message || String(err) });
     }
   });
 
@@ -346,12 +346,12 @@ export function createApiRouter(db: any) {
                    output += data.toString('utf-8');
                });
            });
-       }).on('error', (err) => {
-           if (!res.headersSent) res.status(500).json({ error: err.message });
+       }).on('error', (err: any) => {
+           if (!res.headersSent) res.status(500).json({ error: err?.message || String(err) });
        });
 
        try {
-         const config: any = { host: session.host, port: session.port, username: session.username };
+         const config: any = { host: session.host, port: session.port, username: session.username, readyTimeout: 10000 };
          if (session.password) config.password = session.password;
          if (session.privateKey) {
            config.privateKey = session.privateKey;
@@ -359,10 +359,10 @@ export function createApiRouter(db: any) {
          }
          sshClient.connect(config);
        } catch(err: any) {
-          if (!res.headersSent) res.status(500).json({ error: err.message });
+          if (!res.headersSent) res.status(500).json({ error: err?.message || String(err) });
        }
     } catch (err: any) {
-       if (!res.headersSent) res.status(500).json({ error: err.message });
+       if (!res.headersSent) res.status(500).json({ error: err?.message || String(err) });
     }
   });
 
@@ -402,12 +402,12 @@ export function createApiRouter(db: any) {
                    });
                });
            });
-       }).on('error', (err) => {
-           res.status(500).json({ error: err.message });
+       }).on('error', (err: any) => {
+           res.status(500).json({ error: err?.message || String(err) });
        });
 
        try {
-         const config: any = { host: session.host, port: session.port, username: session.username };
+         const config: any = { host: session.host, port: session.port, username: session.username, readyTimeout: 10000 };
          if (session.password) config.password = session.password;
          if (session.privateKey) {
            config.privateKey = session.privateKey;
@@ -415,10 +415,10 @@ export function createApiRouter(db: any) {
          }
          sshClient.connect(config);
        } catch(err: any) {
-          res.status(500).json({ error: err.message });
+          res.status(500).json({ error: err?.message || String(err) });
        }
     } catch (err: any) {
-       res.status(500).json({ error: err.message });
+       res.status(500).json({ error: err?.message || String(err) });
     }
   });
 
@@ -463,12 +463,12 @@ export function createApiRouter(db: any) {
                    });
                });
            });
-       }).on('error', (err) => {
-           if (!res.headersSent) res.status(500).json({ error: err.message });
+       }).on('error', (err: any) => {
+           if (!res.headersSent) res.status(500).json({ error: err?.message || String(err) });
        });
 
        try {
-         const config: any = { host: session.host, port: session.port, username: session.username };
+         const config: any = { host: session.host, port: session.port, username: session.username, readyTimeout: 10000 };
          if (session.password) config.password = session.password;
          if (session.privateKey) {
            config.privateKey = session.privateKey;
@@ -476,10 +476,10 @@ export function createApiRouter(db: any) {
          }
          sshClient.connect(config);
        } catch(err: any) {
-          if (!res.headersSent) res.status(500).json({ error: err.message });
+          if (!res.headersSent) res.status(500).json({ error: err?.message || String(err) });
        }
     } catch (err: any) {
-       if (!res.headersSent) res.status(500).json({ error: err.message });
+       if (!res.headersSent) res.status(500).json({ error: err?.message || String(err) });
     }
   });
 

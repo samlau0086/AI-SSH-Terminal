@@ -62,8 +62,8 @@ async function startServer() {
              socket.emit("ssh-data", data.toString("utf-8"));
           });
         });
-      }).on("error", (err) => {
-         socket.emit("ssh-status", { status: "error", message: err.message });
+      }).on("error", (err: any) => {
+         socket.emit("ssh-status", { status: "error", message: err?.message || err?.level || String(err) });
       }).on("end", () => {
          socket.emit("ssh-status", { status: "disconnected", message: "SSH connection ended." });
       });
@@ -73,6 +73,7 @@ async function startServer() {
           host: config.host,
           port: config.port || 22,
           username: config.username,
+          readyTimeout: 10000 // Add a timeout so it doesn't hang forever
         };
         if (config.password) {
           connectConfig.password = config.password;
@@ -84,7 +85,7 @@ async function startServer() {
         }
         sshClient.connect(connectConfig);
       } catch (err: any) {
-        socket.emit("ssh-status", { status: "error", message: err.message });
+        socket.emit("ssh-status", { status: "error", message: err?.message || String(err) });
       }
     });
 
