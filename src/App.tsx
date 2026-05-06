@@ -3,6 +3,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { TerminalSquare, MessageSquare, Save, Settings, Plus, Play, Tag, Edit, Trash, X, Bot, Globe, LogOut, Users, Search } from 'lucide-react';
 import { cn } from './lib/utils';
 import TerminalComponent, { TerminalRef } from './components/TerminalComponent';
+import QuickCommands from './components/QuickCommands';
+import { CheckSquare, Square } from 'lucide-react';
 import AIChatComponent from './components/AIChatComponent';
 import SessionForm from './components/SessionForm';
 import SettingsModal, { AISettings } from './components/SettingsModal';
@@ -41,6 +43,7 @@ export default function App() {
   const [terminalContext, setTerminalContext] = useState<string>('');
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [checkedSessionIds, setCheckedSessionIds] = useState<string[]>([]);
   const terminalRef = useRef<TerminalRef>(null);
 
   const fetchSessions = useCallback(async () => {
@@ -242,9 +245,22 @@ export default function App() {
                   onClick={() => setActiveSession(session)}
                 >
                   <div className="flex justify-between text-sm font-medium items-center">
-                    <span className={activeSession?.id === session.id ? "text-zinc-200" : "text-zinc-400 group-hover:text-zinc-300"}>
-                      {session.name || session.host}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <button 
+                         onClick={(e) => {
+                           e.stopPropagation();
+                           setCheckedSessionIds(prev => 
+                             prev.includes(session.id) ? prev.filter(id => id !== session.id) : [...prev, session.id]
+                           );
+                         }}
+                         className="text-zinc-500 hover:text-indigo-400 transition-colors"
+                      >
+                         {checkedSessionIds.includes(session.id) ? <CheckSquare className="w-3.5 h-3.5 text-indigo-400" /> : <Square className="w-3.5 h-3.5" />}
+                      </button>
+                      <span className={activeSession?.id === session.id ? "text-zinc-200" : "text-zinc-400 group-hover:text-zinc-300"}>
+                        {session.name || session.host}
+                      </span>
+                    </div>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button 
                         onClick={(e) => { e.stopPropagation(); setIsEditingSession(session); }}
@@ -277,10 +293,12 @@ export default function App() {
             )}
           </div>
           
-          <div className="mt-auto p-3 bg-indigo-500/10 border border-indigo-500/30 rounded-lg shrink-0">
-            <p className="text-[10px] text-indigo-300 uppercase tracking-tighter font-bold">{t('app.aiAssistant')}</p>
-            <p className="text-xs text-zinc-400 mt-1 leading-relaxed">{t('app.aiReady')}</p>
-          </div>
+          <QuickCommands 
+            onExecuteActive={(cmd) => terminalRef.current?.executeCommand(cmd)} 
+            checkedSessionIds={checkedSessionIds}
+            sessions={sessions}
+            hasActiveSession={!!activeSession}
+          />
         </div>
       </aside>
 

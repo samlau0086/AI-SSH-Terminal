@@ -4,6 +4,8 @@ import jwt from "jsonwebtoken";
 import { open } from 'sqlite';
 import sqlite3 from 'sqlite3';
 
+import { Client } from "ssh2";
+
 const JWT_SECRET = process.env.JWT_SECRET || "super-secret-key-please-change-it-in-production";
 
 export async function initDb() {
@@ -34,6 +36,14 @@ export async function initDb() {
       passphrase TEXT,
       tags TEXT,
       notes TEXT,
+      FOREIGN KEY(userId) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS quick_commands (
+      id TEXT PRIMARY KEY,
+      userId INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      command TEXT NOT NULL,
       FOREIGN KEY(userId) REFERENCES users(id) ON DELETE CASCADE
     );
   `);
@@ -156,6 +166,130 @@ export function createApiRouter(db: any) {
     }
   });
 
+  router.post("/sessions/execute", authenticateToken, async (req: any, res: any) => {
+    try {
+      const { sessionIds, command } = req.body;
+      if (!sessionIds || !sessionIds.length || !command) {
+        return res.status(400).json({ error: "Missing sessionIds or command" });
+      }
+
+      const placeholders = sessionIds.map(() => '?').join(',');
+      const sessions = await db.all(`SELECT * FROM sessions WHERE id IN (${placeholders}) AND userId = ?`, [...sessionIds, req.user.id]);
+      
+      const results = await Promise.all(sessions.map((session: any) => {
+        return new Promise((resolve) => {
+          const sshClient = new Client();
+          let output = '';
+          let executionTimeout = setTimeout(() => {
+            sshClient.end();
+            resolve({ sessionId: session.id, error: 'Command execution timed out' });
+          }, 30000); // 30 second timeout
+          
+          sshClient.on('ready', () => {
+            sshClient.exec(command, (err, stream) => {
+              if (err) {
+                 clearTimeout(executionTimeout);
+                 sshClient.end();
+                 return resolve({ sessionId: session.id, error: err.message });
+              }
+              stream.on('close', (code: any, signal: any) => {
+                clearTimeout(executionTimeout);
+                sshClient.end();
+                resolve({ sessionId: session.id, output, code });
+              }).on('data', (data: any) => {
+                output += data.toString('utf-8');
+              }).stderr.on('data', (data: any) => {
+                output += data.toString('utf-8');
+              });
+            });
+          }).on('error', (err) => {
+            clearTimeout(executionTimeout);
+            resolve({ sessionId: session.id, error: err.message });
+          });
+
+          try {
+            const config: any = { host: session.host, port: session.port, username: session.username };
+            if (session.password) config.password = session.password;
+            if (session.privateKey) {
+              config.privateKey = session.privateKey;
+              if (session.passphrase) config.passphrase = session.passphrase;
+            }
+            sshClient.connect(config);
+          } catch(err: any) {
+            clearTimeout(executionTimeout);
+            resolve({ sessionId: session.id, error: err.message });
+          }
+        });
+      }));
+
+      res.json({ results });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  router.post("/sessions/execute", authenticateToken, async (req: any, res: any) => {
+    try {
+      const { sessionIds, command } = req.body;
+      if (!sessionIds || !sessionIds.length || !command) {
+        return res.status(400).json({ error: "Missing sessionIds or command" });
+      }
+
+      const placeholders = sessionIds.map(() => '?').join(',');
+      const sessions = await db.all(`SELECT * FROM sessions WHERE id IN (${placeholders}) AND userId = ?`, [...sessionIds, req.user.id]);
+      
+      const results = await Promise.all(sessions.map((session: any) => {
+        return new Promise((resolve) => {
+          const sshClient = new Client();
+          let output = '';
+          let executionTimeout = setTimeout(() => {
+            sshClient.end();
+            resolve({ sessionId: session.id, error: 'Command execution timed out' });
+          }, 30000); // 30 second timeout
+          
+          sshClient.on('ready', () => {
+            sshClient.exec(command, (err, stream) => {
+              if (err) {
+                 clearTimeout(executionTimeout);
+                 sshClient.end();
+                 return resolve({ sessionId: session.id, error: err.message });
+              }
+              stream.on('close', (code: any, signal: any) => {
+                clearTimeout(executionTimeout);
+                sshClient.end();
+                resolve({ sessionId: session.id, output, code });
+              }).on('data', (data: any) => {
+                output += data.toString('utf-8');
+              }).stderr.on('data', (data: any) => {
+                output += data.toString('utf-8');
+              });
+            });
+          }).on('error', (err) => {
+            clearTimeout(executionTimeout);
+            resolve({ sessionId: session.id, error: err.message });
+          });
+
+          try {
+            const config: any = { host: session.host, port: session.port, username: session.username };
+            if (session.password) config.password = session.password;
+            if (session.privateKey) {
+              config.privateKey = session.privateKey;
+              if (session.passphrase) config.passphrase = session.passphrase;
+            }
+            sshClient.connect(config);
+          } catch(err: any) {
+            clearTimeout(executionTimeout);
+            resolve({ sessionId: session.id, error: err.message });
+          }
+        });
+      }));
+
+      res.json({ results });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   router.put("/sessions/:id", authenticateToken, async (req: any, res: any) => {
     try {
         const { name, host, port, username, authType, password, privateKey, passphrase, tags, notes } = req.body;
@@ -174,6 +308,50 @@ export function createApiRouter(db: any) {
     try {
         await db.run('DELETE FROM sessions WHERE id=? AND userId=?', [req.params.id, req.user.id]);
         res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  router.get("/quick-commands", authenticateToken, async (req: any, res: any) => {
+    try {
+      const commands = await db.all('SELECT * FROM quick_commands WHERE userId = ?', [req.user.id]);
+      res.json(commands);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  router.post("/quick-commands", authenticateToken, async (req: any, res: any) => {
+    try {
+      const { id, name, command } = req.body;
+      await db.run(
+        `INSERT INTO quick_commands (id, userId, name, command) VALUES (?, ?, ?, ?)`,
+        [id, req.user.id, name, command]
+      );
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  router.put("/quick-commands/:id", authenticateToken, async (req: any, res: any) => {
+    try {
+      const { name, command } = req.body;
+      await db.run(
+        `UPDATE quick_commands SET name=?, command=? WHERE id=? AND userId=?`,
+        [name, command, req.params.id, req.user.id]
+      );
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  router.delete("/quick-commands/:id", authenticateToken, async (req: any, res: any) => {
+    try {
+      await db.run('DELETE FROM quick_commands WHERE id=? AND userId=?', [req.params.id, req.user.id]);
+      res.json({ success: true });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
