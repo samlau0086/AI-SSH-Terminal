@@ -49,17 +49,18 @@ jobs:
           script: |
             cd ${{ secrets.VPS_TARGET_DIR }}
             
-            # 安装生产环境依赖
+            # 针对 VPS 安装生产依赖
             npm install --omit=dev
             
-            # 由于部分 VPS 环境使用较旧的 libc 系统，强制从源码重新编译 C++ 扩展包
-            npm install sqlite3 --build-from-source || npm rebuild sqlite3 --build-from-source
-            npm rebuild cpu-features ssh2 --build-from-source || true
+            # 强制重编基于源码的 sqlite3 避免系统 GLIBC 不匹配
+            npm install sqlite3 --build-from-source
             
             # 确保安装了 pm2 进行进程管理
             npm install -g pm2
             
-            # 停止并重新启动服务，注入必要的环境变量
-            pm2 stop ai-ssh-terminal || true
-            NODE_ENV=production APP_PORT=3020 GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}" pm2 start dist/server.js --name "ai-ssh-terminal"
+            # 彻底删除旧的环境，避免端口或者环境残留
+            pm2 delete ai-ssh-terminal || true
+            
+            # 启动服务，注入必要的环境变量
+            NODE_ENV=production APP_PORT=3020 GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}" pm2 start dist/server.js --name "ai-ssh-terminal" --update-env
             pm2 save

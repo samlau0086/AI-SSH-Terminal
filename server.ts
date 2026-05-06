@@ -4,7 +4,6 @@ import { Server } from "socket.io";
 import { Client } from "ssh2";
 import path from "path";
 import { fileURLToPath } from "url";
-import { createServer as createViteServer } from "vite";
 import fs from "fs";
 import { initDb, createApiRouter } from "./api.js";
 
@@ -110,6 +109,7 @@ async function startServer() {
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
@@ -126,7 +126,7 @@ async function startServer() {
   }
 
   httpServer.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://0.0.0.0:${PORT}`);
+    console.log(`Server running on http://0.0.0.0:${PORT} (Environment: ${process.env.NODE_ENV})`);
   });
 }
 
