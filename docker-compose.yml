@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  ai-ssh-terminal:
+    build: .
+    container_name: ai-ssh-terminal
+    restart: unless-stopped
+    ports:
+      - "3020:3000"
+    environment:
+      - NODE_ENV=production
+      - APP_PORT=3000
+      - DB_PATH=/app/data/database.sqlite
+      # Replace with your actual Gemini API Key
+      - GEMINI_API_KEY=YOUR_GEMINI_API_KEY_HERE
+      # Optional: set a custom JWT secret for session tokens
+      # - JWT_SECRET=your_custom_secret_key
+    volumes:
+      - ./data:/app/data

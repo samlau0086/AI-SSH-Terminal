@@ -12,8 +12,9 @@ const JWT_SECRET = process.env.JWT_SECRET || "super-secret-key-please-change-it-
 const upload = multer({ dest: '/tmp/uploads/' });
 
 export async function initDb() {
+  const dbPath = process.env.DB_PATH || './database.sqlite';
   const db = await open({
-    filename: './database.sqlite',
+    filename: dbPath,
     driver: sqlite3.Database
   });
 
