@@ -545,7 +545,7 @@ export default function App() {
             </div>
 
             {/* Terminal Container */}
-            <div className="flex-1 bg-black border border-zinc-800 rounded-xl p-4 font-mono text-sm overflow-hidden flex flex-col relative w-full min-h-0">
+            <div className="flex-1 bg-black border border-zinc-800 rounded-xl p-0 font-mono text-sm overflow-hidden flex flex-col relative w-full min-h-0">
                {tabs.map((tab) => (
                  <div 
                    key={tab.id} 

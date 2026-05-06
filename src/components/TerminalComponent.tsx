@@ -89,6 +89,24 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, onContextUp
   };
 
   
+  const fitAddonRef = useRef<FitAddon | null>(null);
+
+  useEffect(() => {
+    const resizeObserver = new ResizeObserver(() => {
+      if (xtermRef.current && fitAddonRef.current) {
+        fitAddonRef.current.fit();
+      }
+    });
+
+    if (terminalRef.current) {
+      resizeObserver.observe(terminalRef.current);
+    }
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, []);
+
   const connect = () => {
     if (!terminalRef.current) return;
 
@@ -123,6 +141,7 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, onContextUp
       term.open(terminalRef.current);
       fitAddon.fit();
       xtermRef.current = term;
+      fitAddonRef.current = fitAddon;
 
       const handleResize = () => fitAddon.fit();
       window.addEventListener('resize', handleResize);
@@ -222,7 +241,7 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, onContextUp
   }, []);
 
   return (
-    <div className="relative flex-1 bg-transparent overflow-hidden flex flex-col h-full w-full">
+    <div className="relative flex-1 bg-transparent overflow-hidden flex flex-col h-full w-full p-4">
       {status === 'connecting' && (
         <div className="absolute inset-0 bg-black/50 z-10 flex items-center justify-center backdrop-blur-sm">
           <div className="bg-[#18181b] border border-zinc-800 p-4 rounded-xl flex items-center gap-3 shadow-2xl">
@@ -267,12 +286,12 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, onContextUp
         </div>
       )}
 
-      <div ref={terminalRef} className="flex-1 w-full min-h-0" />
+      <div ref={terminalRef} className="flex-1 w-full min-h-0 overflow-hidden" />
       
       {/* Command Input Bar */}
       <form 
         onSubmit={handleCommandSubmit}
-        className="mt-2 shrink-0 flex items-center bg-[#18181b] border border-zinc-800 rounded-md p-1"
+        className="mt-2 shrink-0 flex items-center bg-[#18181b] border border-zinc-800 rounded-md p-1 relative z-10"
       >
         <span className="text-zinc-500 font-mono text-xs ml-2 mr-2 shrink-0">$</span>
         <input 
