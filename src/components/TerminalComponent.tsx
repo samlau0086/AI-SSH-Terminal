@@ -178,17 +178,21 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, onContextUp
       }
     });
 
-    xtermRef.current?.onData((data) => {
-      if (newSocket.connected && status === 'connected') {
+    const dataListener = xtermRef.current?.onData((data) => {
+      if (newSocket.connected) {
         newSocket.emit('ssh-data', data);
       }
     });
 
-    xtermRef.current?.onResize((size) => {
-      newSocket.emit('ssh-resize', size);
+    const resizeListener = xtermRef.current?.onResize((size) => {
+      if (newSocket.connected) {
+        newSocket.emit('ssh-resize', size);
+      }
     });
 
     return () => {
+      dataListener?.dispose();
+      resizeListener?.dispose();
       newSocket.disconnect();
     };
   };
