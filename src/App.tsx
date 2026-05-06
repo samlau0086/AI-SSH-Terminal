@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { TerminalSquare, MessageSquare, Save, Settings, Plus, Play, Tag, Edit, Trash, X, Bot, Globe, LogOut, Users } from 'lucide-react';
+import { TerminalSquare, MessageSquare, Save, Settings, Plus, Play, Tag, Edit, Trash, X, Bot, Globe, LogOut, Users, Search } from 'lucide-react';
 import { cn } from './lib/utils';
 import TerminalComponent, { TerminalRef } from './components/TerminalComponent';
 import AIChatComponent from './components/AIChatComponent';
@@ -39,6 +39,8 @@ export default function App() {
   const [activeSession, setActiveSession] = useState<Session | null>(null);
   const [isEditingSession, setIsEditingSession] = useState<Session | Partial<Session> | null>(null);
   const [terminalContext, setTerminalContext] = useState<string>('');
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const terminalRef = useRef<TerminalRef>(null);
 
   const fetchSessions = useCallback(async () => {
@@ -172,14 +174,63 @@ export default function App() {
               <Plus className="w-4 h-4" />
             </button>
           </div>
+
+          {/* Search Input */}
+          <div className="relative shrink-0">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-3.5 w-3.5 text-zinc-500" />
+            </div>
+            <input
+              type="text"
+              placeholder="Search sessions..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="block w-full pl-9 pr-3 py-1.5 text-xs bg-[#09090b] border border-zinc-800 rounded-md text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-indigo-500 transition-colors"
+            />
+          </div>
+          
+          {/* Tag Filter */}
+          {Array.from(new Set(sessions.flatMap(s => s.tags || []))).length > 0 && (
+            <div className="flex flex-wrap gap-1.5 shrink-0">
+              {Array.from(new Set(sessions.flatMap(s => s.tags || []))).map(tag => (
+                <button
+                  key={tag}
+                  onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
+                  className={cn(
+                    "px-2 py-0.5 text-[10px] rounded uppercase font-bold tracking-tighter transition-colors border",
+                    selectedTag === tag 
+                      ? "bg-indigo-500/20 text-indigo-400 border-indigo-500/50" 
+                      : "bg-[#09090b] text-zinc-500 border-zinc-800 hover:text-zinc-300"
+                  )}
+                >
+                  <div className="flex items-center gap-1">
+                    <Tag className="w-2.5 h-2.5" />
+                    {tag}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
           
           <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
-            {sessions.length === 0 ? (
+            {sessions.filter(s => {
+              const matchesTag = !selectedTag || (s.tags && s.tags.includes(selectedTag));
+              const matchesSearch = !searchQuery || 
+                (s.name && s.name.toLowerCase().includes(searchQuery.toLowerCase())) || 
+                (s.host && s.host.toLowerCase().includes(searchQuery.toLowerCase()));
+              return matchesTag && matchesSearch;
+            }).length === 0 ? (
               <div className="p-4 text-center text-sm text-zinc-500">
                 {t('app.noSavedSessions')}
               </div>
             ) : (
-              sessions.map(session => (
+              sessions.filter(s => {
+                const matchesTag = !selectedTag || (s.tags && s.tags.includes(selectedTag));
+                const matchesSearch = !searchQuery || 
+                  (s.name && s.name.toLowerCase().includes(searchQuery.toLowerCase())) || 
+                  (s.host && s.host.toLowerCase().includes(searchQuery.toLowerCase()));
+                return matchesTag && matchesSearch;
+              }).map(session => (
                 <div 
                   key={session.id}
                   className={cn(
