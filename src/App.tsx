@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { TerminalSquare, MessageSquare, Save, Settings, Plus, Play, Tag, Edit, Trash, X, Bot, Globe, LogOut, Users, Search } from 'lucide-react';
+import { TerminalSquare, MessageSquare, Save, Settings, Plus, Play, Tag, Edit, Trash, X, Bot, Globe, LogOut, Users, Search, Archive } from 'lucide-react';
 import { cn } from './lib/utils';
 import TerminalComponent, { TerminalRef } from './components/TerminalComponent';
 import QuickCommands from './components/QuickCommands';
@@ -9,6 +9,7 @@ import SessionInfoPanel from './components/SessionInfoPanel';
 import AIChatComponent from './components/AIChatComponent';
 import SessionForm from './components/SessionForm';
 import SettingsModal, { AISettings } from './components/SettingsModal';
+import ImportExportModal from './components/ImportExportModal';
 import AuthPage from './components/AuthPage';
 import AdminModal from './components/AdminModal';
 import { useTranslation } from 'react-i18next';
@@ -41,6 +42,7 @@ export default function App() {
   });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [isImportExportOpen, setIsImportExportOpen] = useState(false);
   const [activeSession, setActiveSession] = useState<Session | null>(null);
   const [tabs, setTabs] = useState<{id: string, session: Session}[]>(() => {
     const saved = localStorage.getItem('ai-ssh-tabs');
@@ -128,14 +130,45 @@ export default function App() {
       
       if (res.ok) {
         if (isNew) {
-          setSessions([...sessions, payload]);
+          setSessions(prev => [...prev, payload]);
         } else {
-          setSessions(sessions.map(s => s.id === id ? payload : s));
+          setSessions(prev => prev.map(s => s.id === id ? payload : s));
         }
         setIsEditingSession(null);
       }
     } catch (err) {
       console.error('Failed to save session', err);
+    }
+  };
+
+  const handleImportSessions = async (importedSessions: Session[]) => {
+    if (!token) return;
+    let isAnySuccess = false;
+    for (const session of importedSessions) {
+      const isNew = !sessions.find(s => s.id === session.id);
+      const id = session.id || uuidv4();
+      const payload = { ...session, id };
+
+      try {
+        const method = isNew ? 'POST' : 'PUT';
+        const endpoint = isNew ? '/api/sessions' : `/api/sessions/${id}`;
+        const res = await fetch(endpoint, {
+          method,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          isAnySuccess = true;
+        }
+      } catch (err) {
+        console.error('Failed to import session', err);
+      }
+    }
+    if (isAnySuccess) {
+      fetchSessions();
     }
   };
 
@@ -244,12 +277,21 @@ export default function App() {
         <div className="flex-1 bg-[#18181b] border border-zinc-800 rounded-xl p-4 flex flex-col gap-4 overflow-hidden">
           <div className="flex justify-between items-center shrink-0">
             <h2 className="text-xs font-bold uppercase tracking-widest text-zinc-500">{t('app.savedSessions')}</h2>
-            <button 
-              onClick={() => setIsEditingSession({ authType: 'password', port: 22, tags: [] })}
-              className="text-zinc-500 hover:text-white transition-colors flex items-center justify-center p-1"
-            >
-              <Plus className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-1">
+              <button 
+                onClick={() => setIsImportExportOpen(true)}
+                className="text-zinc-500 hover:text-indigo-400 transition-colors flex items-center justify-center p-1"
+                title="Import/Export Sessions"
+              >
+                <Archive className="w-4 h-4" />
+              </button>
+              <button 
+                onClick={() => setIsEditingSession({ authType: 'password', port: 22, tags: [] })}
+                className="text-zinc-500 hover:text-white transition-colors flex items-center justify-center p-1"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           {/* Search Input */}
@@ -490,6 +532,14 @@ export default function App() {
             setIsSettingsOpen(false);
           }}
           onClose={() => setIsSettingsOpen(false)}
+        />
+      )}
+
+      {isImportExportOpen && (
+        <ImportExportModal
+          sessions={sessions}
+          onImport={handleImportSessions}
+          onClose={() => setIsImportExportOpen(false)}
         />
       )}
 
