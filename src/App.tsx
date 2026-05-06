@@ -19,14 +19,14 @@ import { Group as PanelGroup, Panel, Separator as PanelResizeHandle } from "reac
 const ResizeHandle = ({ direction = 'horizontal' }: { direction?: 'horizontal' | 'vertical' }) => (
   <PanelResizeHandle 
     className={cn(
-      "flex justify-center items-center group transition-colors",
-      direction === 'horizontal' ? "w-4 cursor-col-resize flex-col" : "h-4 cursor-row-resize flex-row"
+      "relative flex justify-center items-center group transition-all z-10",
+      direction === 'horizontal' ? "w-2 hover:w-3 cursor-col-resize px-0.5" : "h-2 hover:h-3 cursor-row-resize py-0.5"
     )}
   >
     <div 
       className={cn(
-        "bg-zinc-800 rounded-full group-hover:bg-indigo-500 transition-colors",
-        direction === 'horizontal' ? "w-1 h-8" : "h-1 w-8"
+        "bg-zinc-800/30 rounded-full group-hover:bg-indigo-500/50 transition-all",
+        direction === 'horizontal' ? "w-1 h-12 group-hover:h-16" : "h-1 w-12 group-hover:w-16"
       )} 
     />
   </PanelResizeHandle>
@@ -247,11 +247,11 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen w-full bg-[#09090b] text-zinc-400 font-sans p-2 overflow-hidden">
-      <PanelGroup orientation="horizontal">
+    <div className="h-screen w-full bg-[#09090b] text-zinc-400 font-sans p-0 overflow-hidden">
+      <PanelGroup orientation="horizontal" id="horizontal-main-layout" className="h-full w-full">
         {/* Left Sidebar: Sessions */}
-        <Panel defaultSize={20} minSize={15} maxSize={40} collapsible>
-          <aside className="w-full h-full flex flex-col gap-4 p-2">
+        <Panel id="sidebar-left" defaultSize={22} minSize={15} maxSize={40} collapsible>
+          <aside className="w-full h-full flex flex-col gap-3 p-2">
             <div className="h-12 bg-[#18181b] border border-zinc-800 rounded-xl flex items-center px-4 gap-3 shrink-0">
               <div className="w-3 h-3 rounded-full bg-red-500"></div>
               <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
@@ -443,11 +443,11 @@ export default function App() {
         <ResizeHandle direction="horizontal" />
 
         {/* Main Content Area */}
-        <Panel defaultSize={55} minSize={30}>
+        <Panel id="main-content" defaultSize={53} minSize={30}>
           <main className="h-full w-full flex flex-col p-2 min-w-0">
             {tabs.length > 0 ? (
-              <PanelGroup orientation="vertical">
-                <Panel defaultSize={70} minSize={20} className="flex flex-col gap-4">
+              <PanelGroup orientation="vertical" id="vertical-content-layout" className="h-full w-full">
+                <Panel id="terminal-panel" defaultSize={70} minSize={20} className="flex flex-col gap-4">
                   {/* Tabs Bar */}
                   <div className="h-10 bg-[#18181b] border border-zinc-800 rounded-xl flex items-center px-2 shrink-0 overflow-x-auto custom-scrollbar gap-1">
                      {tabs.map((tab) => (
@@ -500,7 +500,7 @@ export default function App() {
                 <ResizeHandle direction="vertical" />
                 
                 {/* Session Info Panel (CPU/Memory/Upload) */}
-                <Panel defaultSize={30} minSize={10} collapsible className="overflow-hidden shadow-xl rounded-xl border border-zinc-800">
+                <Panel id="info-panel" defaultSize={30} minSize={10} collapsible className="overflow-hidden shadow-xl rounded-xl border border-zinc-800">
                   <div className="h-full w-full overflow-hidden flex flex-col pt-1">
                      <SessionInfoPanel session={activeSession!} />
                   </div>
@@ -521,7 +521,7 @@ export default function App() {
         <ResizeHandle direction="horizontal" />
 
         {/* Right Sidebar: AI Chat */}
-        <Panel defaultSize={25} minSize={15} maxSize={40} collapsible>
+        <Panel id="sidebar-right" defaultSize={25} minSize={15} maxSize={40} collapsible>
           {tabs.length > 0 ? (
             <aside className="w-full h-full flex flex-col gap-4 p-2">
               <div className="flex-1 bg-[#18181b] border border-zinc-800 rounded-xl flex flex-col overflow-hidden max-h-full">

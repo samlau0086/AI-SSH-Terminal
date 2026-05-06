@@ -89,126 +89,122 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, onContextUp
   };
 
   
-  const connect = () => {
-    if (!terminalRef.current) return;
-
-    setStatus('connecting');
-    setErrorMsg('');
-    outputBuffer.current = [];
-
-    // Initialize xterm
-    if (!xtermRef.current) {
-      const term = new Terminal({
-        cursorBlink: true,
-        theme: {
-          background: '#09090b', // zinc-950
-          foreground: '#f4f4f5', // zinc-50
-          cursor: '#10b981', // emerald-500
-          selectionBackground: '#27272a',
-          black: '#18181b',
-          red: '#ef4444',
-          green: '#10b981',
-          yellow: '#eab308',
-          blue: '#3b82f6',
-          magenta: '#d946ef',
-          cyan: '#06b6d4',
-          white: '#f4f4f5',
-        },
-        fontFamily: '"JetBrains Mono", "Fira Code", monospace',
-        fontSize: 14,
-        allowTransparency: true
-      });
-      const fitAddon = new FitAddon();
-      term.loadAddon(fitAddon);
-      term.open(terminalRef.current);
-      fitAddon.fit();
-      xtermRef.current = term;
-
-      const handleResize = () => fitAddon.fit();
-      window.addEventListener('resize', handleResize);
-    } else {
-      xtermRef.current.clear();
-      outputBuffer.current = [];
-    }
-
-    // Connect to backend
-    // Vite proxy handles development, but we should connect to the current origin
-    const newSocket = io({
-      path: '/socket.io'
-    });
-
-    setSocket(newSocket);
-
-    newSocket.on('connect', () => {
-      // Configure credentials to send (NEVER print these)
-      const connectOpts = {
-        host: session.host,
-        port: session.port,
-        username: session.username,
-        authType: session.authType,
-        password: session.password,
-        privateKey: session.privateKey,
-        passphrase: session.passphrase
-      };
-      
-      newSocket.emit('ssh-connect', connectOpts);
-    });
-
-    newSocket.on('ssh-status', (stat: any) => {
-      if (stat.status === 'connected' || stat.status === 'shell-ready') {
-        setStatus('connected');
-        if (xtermRef.current) {
-          xtermRef.current.focus();
-        }
-      } else if (stat.status === 'error') {
-        setStatus('error');
-        setErrorMsg(stat.message);
-        xtermRef.current?.writeln(`\x1b[31m[SSH Error] ${stat.message}\x1b[0m`);
-      } else if (stat.status === 'disconnected') {
-        setStatus(prev => prev === 'error' ? 'error' : 'disconnected');
-        xtermRef.current?.writeln(`\x1b[33m\r\n[SSH Disconnected]\x1b[0m`);
-      }
-    });
-
-    newSocket.on('ssh-data', (data: string) => {
-      if (xtermRef.current) {
-        xtermRef.current.write(data);
-        
-        // Track output for context (keep last 50 lines approximate)
-        const lines = data.split('\n');
-        outputBuffer.current = [...outputBuffer.current, ...lines].slice(-50);
-        
-        // Debounce context update slightly
-        onContextUpdate(outputBuffer.current.join('\n'));
-      }
-    });
-
-    const dataListener = xtermRef.current?.onData((data) => {
-      if (newSocket.connected) {
-        newSocket.emit('ssh-data', data);
-      }
-    });
-
-    const resizeListener = xtermRef.current?.onResize((size) => {
-      if (newSocket.connected) {
-        newSocket.emit('ssh-resize', size);
-      }
-    });
-
-    return () => {
-      dataListener?.dispose();
-      resizeListener?.dispose();
-      newSocket.disconnect();
-    };
-  };
-
   useEffect(() => {
-    connect();
+    let resizeObserver: ResizeObserver | null = null;
+    let newSocket: Socket | null = null;
+
+    const connect = () => {
+      if (!terminalRef.current) return;
+
+      setStatus('connecting');
+      setErrorMsg('');
+      outputBuffer.current = [];
+
+      // Initialize xterm
+      if (!xtermRef.current) {
+        const term = new Terminal({
+          cursorBlink: true,
+          theme: {
+            background: '#09090b',
+            foreground: '#f4f4f5',
+            cursor: '#10b981',
+            selectionBackground: '#27272a',
+            black: '#18181b',
+            red: '#ef4444',
+            green: '#10b981',
+            yellow: '#eab308',
+            blue: '#3b82f6',
+            magenta: '#d946ef',
+            cyan: '#06b6d4',
+            white: '#f4f4f5',
+          },
+          fontFamily: '"JetBrains Mono", "Fira Code", monospace',
+          fontSize: 14,
+          allowTransparency: true
+        });
+        const fitAddon = new FitAddon();
+        term.loadAddon(fitAddon);
+        term.open(terminalRef.current);
+        
+        resizeObserver = new ResizeObserver(() => {
+          if (terminalRef.current && terminalRef.current.offsetHeight > 0) {
+            fitAddon.fit();
+          }
+        });
+        resizeObserver.observe(terminalRef.current);
+        
+        fitAddon.fit();
+        xtermRef.current = term;
+      } else {
+        xtermRef.current.clear();
+        outputBuffer.current = [];
+      }
+
+      newSocket = io({
+        path: '/socket.io'
+      });
+      setSocket(newSocket);
+
+      newSocket.on('connect', () => {
+        const connectOpts = {
+          host: session.host,
+          port: session.port,
+          username: session.username,
+          authType: session.authType,
+          password: session.password,
+          privateKey: session.privateKey,
+          passphrase: session.passphrase
+        };
+        newSocket?.emit('ssh-connect', connectOpts);
+      });
+
+      newSocket.on('ssh-status', (stat: any) => {
+        if (stat.status === 'connected' || stat.status === 'shell-ready') {
+          setStatus('connected');
+          xtermRef.current?.focus();
+        } else if (stat.status === 'error') {
+          setStatus('error');
+          setErrorMsg(stat.message);
+          xtermRef.current?.writeln(`\x1b[31m[SSH Error] ${stat.message}\x1b[0m`);
+        } else if (stat.status === 'disconnected') {
+          setStatus(prev => prev === 'error' ? 'error' : 'disconnected');
+          xtermRef.current?.writeln(`\x1b[33m\r\n[SSH Disconnected]\x1b[0m`);
+        }
+      });
+
+      newSocket.on('ssh-data', (data: string) => {
+        if (xtermRef.current) {
+          xtermRef.current.write(data);
+          const lines = data.split('\n');
+          outputBuffer.current = [...outputBuffer.current, ...lines].slice(-50);
+          onContextUpdate(outputBuffer.current.join('\n'));
+        }
+      });
+
+      const dataListener = xtermRef.current?.onData((data) => {
+        if (newSocket?.connected) {
+          newSocket.emit('ssh-data', data);
+        }
+      });
+
+      const resizeListener = xtermRef.current?.onResize((size) => {
+        if (newSocket?.connected) {
+          newSocket.emit('ssh-resize', size);
+        }
+      });
+
+      return () => {
+        dataListener?.dispose();
+        resizeListener?.dispose();
+        newSocket?.disconnect();
+        resizeObserver?.disconnect();
+      };
+    };
+
+    const cleanup = connect();
     
     return () => {
-      if (socket) {
-        socket.disconnect();
-      }
+      if (cleanup) cleanup();
     };
   }, [session]);
 
