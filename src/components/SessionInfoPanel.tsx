@@ -279,7 +279,7 @@ export default function SessionInfoPanel({ session }: Props) {
     <div 
       ref={containerRef}
       className={cn(
-        "flex bg-[#09090b] text-xs h-full w-full overflow-hidden",
+        "flex dark:bg-[#09090b] bg-zinc-50 text-xs h-full w-full overflow-hidden",
         isResizing && "cursor-col-resize select-none border-indigo-500/20"
       )}
     >
@@ -288,14 +288,14 @@ export default function SessionInfoPanel({ session }: Props) {
         style={{ width: `${statsWidth}px` }} 
         className="shrink-0 p-4 flex flex-col justify-center"
       >
-         <h3 className="text-[10px] uppercase font-bold text-zinc-500 tracking-widest mb-3 flex items-center gap-2">
+         <h3 className="text-[10px] uppercase font-bold dark:text-zinc-500 text-zinc-500 tracking-widest mb-3 flex items-center gap-2">
             <Activity className="w-3 h-3 text-emerald-400" />
             Server Performance
          </h3>
          
          <div className="space-y-4">
              <div>
-                <div className="flex justify-between text-zinc-400 mb-1 font-mono">
+                <div className="flex justify-between dark:text-zinc-400 dark:text-zinc-600 text-zinc-400 mb-1 font-mono">
                     <span className="flex items-center gap-1.5"><Cpu className="w-3.5 h-3.5" /> CPU</span>
                     <span>{cpuUsage}</span>
                 </div>
@@ -304,7 +304,7 @@ export default function SessionInfoPanel({ session }: Props) {
                 </div>
              </div>
              <div>
-                <div className="flex justify-between text-zinc-400 mb-1 font-mono">
+                <div className="flex justify-between dark:text-zinc-400 dark:text-zinc-600 text-zinc-400 mb-1 font-mono">
                     <span className="flex items-center gap-1.5"><HardDrive className="w-3.5 h-3.5" /> Memory</span>
                     <span>{memUsage}</span>
                 </div>
@@ -332,7 +332,7 @@ export default function SessionInfoPanel({ session }: Props) {
       {/* File Explorer Section */}
       <div className="flex-1 flex flex-col relative overflow-hidden">
          {/* Toolbar */}
-         <div className="p-2 border-b border-zinc-800 flex items-center gap-2 bg-[#000000]">
+         <div className="p-2 border-b dark:border-zinc-800 border-zinc-200 flex items-center gap-2 bg-[#000000]">
              <Folder className="w-4 h-4 text-indigo-400 shrink-0" />
              <form 
                onSubmit={(e) => { e.preventDefault(); loadFiles(inputPath); }}
@@ -342,17 +342,17 @@ export default function SessionInfoPanel({ session }: Props) {
                     type="text" 
                     value={inputPath}
                     onChange={e => setInputPath(e.target.value)}
-                    className="bg-transparent border-none outline-none text-zinc-300 font-mono w-full px-2"
+                    className="bg-transparent border-none outline-none dark:text-zinc-300 text-zinc-700 font-mono w-full px-2"
                     placeholder="/path/to/dir"
                  />
-                 <button type="submit" className="text-zinc-500 hover:text-zinc-300 p-1">
+                 <button type="submit" className="dark:text-zinc-500 text-zinc-500 hover:dark:text-zinc-300 text-zinc-700 p-1">
                     <ChevronRight className="w-4 h-4" />
                  </button>
              </form>
 
              <button 
                 onClick={() => loadFiles(targetPath)}
-                className="p-1.5 text-zinc-400 hover:text-white rounded-md hover:bg-zinc-800"
+                className="p-1.5 dark:text-zinc-400 dark:text-zinc-600 text-zinc-400 hover:text-white rounded-md dark:hover:bg-zinc-800 hover:bg-zinc-200"
                 title="Refresh"
              >
                 <RefreshCw className={`w-3.5 h-3.5 ${isLoadingFiles ? 'animate-spin text-indigo-400' : ''}`} />
@@ -395,7 +395,7 @@ export default function SessionInfoPanel({ session }: Props) {
              ) : (
                  <table className="w-full text-left border-collapse">
                      <thead>
-                         <tr className="text-[10px] uppercase tracking-widest text-zinc-500 sticky top-0 bg-[#09090b] z-10">
+                         <tr className="text-[10px] uppercase tracking-widest dark:text-zinc-500 text-zinc-500 sticky top-0 dark:bg-[#09090b] bg-zinc-50 z-10">
                              <th className="font-normal py-1.5 px-2">Name</th>
                              <th className="font-normal py-1.5 px-2 w-24">Size</th>
                              <th className="font-normal py-1.5 px-2 w-16 text-right">Actions</th>
@@ -411,13 +411,13 @@ export default function SessionInfoPanel({ session }: Props) {
                          }).map(f => {
                              const isDir = isDirectory(f);
                              return (
-                                 <tr key={f.filename} className="border-b border-zinc-800/50 hover:bg-zinc-800/30 group">
+                                 <tr key={f.filename} className="border-b border-zinc-800/50 dark:hover:bg-zinc-800/30 hover:bg-zinc-200/50 group">
                                      <td className="py-1.5 px-2">
                                          <div className="flex items-center gap-2">
                                              {isDir ? (
                                                  <Folder className="w-3.5 h-3.5 text-blue-400 shrink-0" />
                                              ) : (
-                                                 <FileIcon className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
+                                                 <FileIcon className="w-3.5 h-3.5 dark:text-zinc-500 text-zinc-500 shrink-0" />
                                              )}
                                              {isDir ? (
                                                  <button 
@@ -436,11 +436,11 @@ export default function SessionInfoPanel({ session }: Props) {
                                                     {f.filename}
                                                  </button>
                                              ) : (
-                                                 <span className="text-zinc-300 truncate max-w-[200px]">{f.filename}</span>
+                                                 <span className="dark:text-zinc-300 text-zinc-700 truncate max-w-[200px]">{f.filename}</span>
                                              )}
                                          </div>
                                      </td>
-                                     <td className="py-1.5 px-2 text-zinc-500">
+                                     <td className="py-1.5 px-2 dark:text-zinc-500 text-zinc-500">
                                          {!isDir && formatSize(f.attrs.size)}
                                      </td>
                                      <td className="py-1.5 px-2 text-right">
@@ -448,7 +448,7 @@ export default function SessionInfoPanel({ session }: Props) {
                                              {!isDir && (
                                                  <button 
                                                     onClick={() => handleDownload(f.filename)}
-                                                    className="text-zinc-500 hover:text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity p-1"
+                                                    className="dark:text-zinc-500 text-zinc-500 hover:text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity p-1"
                                                     title="Download"
                                                  >
                                                     <Download className="w-3.5 h-3.5" />
@@ -460,7 +460,7 @@ export default function SessionInfoPanel({ session }: Props) {
                                                         e.stopPropagation(); // prevent directory navigation if it's a dir
                                                         handleDelete(f.filename, isDir);
                                                     }}
-                                                    className="text-zinc-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity p-1"
+                                                    className="dark:text-zinc-500 text-zinc-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity p-1"
                                                     title="Delete"
                                                  >
                                                     <Trash className="w-3.5 h-3.5" />
@@ -473,7 +473,7 @@ export default function SessionInfoPanel({ session }: Props) {
                          })}
                          {files.length === 0 && !isLoadingFiles && (
                              <tr>
-                                 <td colSpan={3} className="py-4 text-center text-zinc-600">
+                                 <td colSpan={3} className="py-4 text-center dark:text-zinc-600 text-zinc-400">
                                      Empty directory
                                  </td>
                              </tr>

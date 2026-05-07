@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { TerminalSquare, MessageSquare, Save, Settings, Plus, Play, Tag, Edit, Trash, X, Bot, Globe, LogOut, Users, Search, Archive } from 'lucide-react';
+import { TerminalSquare, MessageSquare, Save, Settings, Plus, Play, Tag, Edit, Trash, X, Bot, Globe, LogOut, Users, Search, Archive, Sun, Moon } from 'lucide-react';
 import { cn } from './lib/utils';
 import TerminalComponent, { TerminalRef } from './components/TerminalComponent';
 import QuickCommands from './components/QuickCommands';
@@ -43,6 +43,19 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isImportExportOpen, setIsImportExportOpen] = useState(false);
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    return (localStorage.getItem('ai-ssh-theme') as 'light' | 'dark') || 'dark';
+  });
+
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('ai-ssh-theme', theme);
+  }, [theme]);
+
   const [activeSession, setActiveSession] = useState<Session | null>(null);
   const [tabs, setTabs] = useState<{id: string, session: Session}[]>(() => {
     const saved = localStorage.getItem('ai-ssh-tabs');
@@ -292,7 +305,7 @@ export default function App() {
   };
 
   if (isLoading) {
-    return <div className="h-screen w-full bg-[#09090b] text-zinc-400 flex items-center justify-center font-mono">Loading...</div>;
+    return <div className="h-screen w-full dark:bg-[#09090b] bg-zinc-50 dark:text-zinc-400 dark:text-zinc-600 text-zinc-400 flex items-center justify-center font-mono">Loading...</div>;
   }
 
   if (!user) {
@@ -301,7 +314,7 @@ export default function App() {
 
   return (
     <div className={cn(
-      "flex h-screen w-full bg-[#09090b] text-zinc-400 font-sans p-4 gap-0 overflow-hidden",
+      "flex h-screen w-full dark:bg-[#09090b] bg-zinc-50 dark:text-zinc-400 dark:text-zinc-600 text-zinc-400 font-sans p-4 gap-0 overflow-hidden",
       (isResizingLeft || isResizingRight || isResizingMain) && "select-none",
       (isResizingLeft || isResizingRight) && "cursor-col-resize",
       isResizingMain && "cursor-row-resize"
@@ -311,25 +324,32 @@ export default function App() {
         style={{ width: `${leftSidebarWidth}px` }} 
         className="flex flex-col gap-4 shrink-0"
       >
-        <div className="h-12 bg-[#18181b] border border-zinc-800 rounded-xl flex items-center px-4 gap-3 shrink-0">
+        <div className="h-12 dark:bg-[#18181b] dark:bg-white bg-zinc-900 border dark:border-zinc-800 border-zinc-200 rounded-xl flex items-center px-4 gap-3 shrink-0">
           <div className="w-3 h-3 rounded-full bg-red-500"></div>
           <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
           <div className="w-3 h-3 rounded-full bg-green-500"></div>
-          <span className="text-xs font-bold text-zinc-500 tracking-widest ml-auto">{t('app.title')}</span>
+          <span className="text-xs font-bold dark:text-zinc-500 text-zinc-500 tracking-widest ml-auto">{t('app.title')}</span>
           <button
             onClick={() => {
               const newLang = i18n.language === 'en' ? 'zh' : 'en';
               i18n.changeLanguage(newLang);
               localStorage.setItem('ai-ssh-lang', newLang);
             }}
-            className="text-zinc-500 hover:text-zinc-300 ml-2"
+            className="dark:text-zinc-500 text-zinc-500 hover:dark:text-zinc-300 text-zinc-700 ml-2"
             title={i18n.language === 'en' ? t('app.langZh') : t('app.langEn')}
           >
             <Globe className="w-3.5 h-3.5" />
           </button>
           <button
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className="dark:text-zinc-500 text-zinc-500 hover:dark:text-zinc-300 text-zinc-700 ml-2"
+            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          >
+            {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+          </button>
+          <button
             onClick={() => setIsSettingsOpen(true)}
-            className="text-zinc-500 hover:text-zinc-300 ml-2"
+            className="dark:text-zinc-500 text-zinc-500 hover:dark:text-zinc-300 text-zinc-700 ml-2"
             title={t('app.settings')}
           >
             <Settings className="w-3.5 h-3.5" />
@@ -337,7 +357,7 @@ export default function App() {
           {user?.role === 'admin' && (
             <button
               onClick={() => setIsAdminOpen(true)}
-              className="text-zinc-500 hover:text-emerald-400 ml-2"
+              className="dark:text-zinc-500 text-zinc-500 hover:text-emerald-400 ml-2"
               title={t('auth.adminDashboard')}
             >
               <Users className="w-3.5 h-3.5" />
@@ -345,27 +365,27 @@ export default function App() {
           )}
           <button
             onClick={logout}
-            className="text-zinc-500 hover:text-red-400 ml-2"
+            className="dark:text-zinc-500 text-zinc-500 hover:text-red-400 ml-2"
             title={t('app.logout')}
           >
             <LogOut className="w-3.5 h-3.5" />
           </button>
         </div>
         
-        <div className="flex-1 bg-[#18181b] border border-zinc-800 rounded-xl p-4 flex flex-col gap-4">
+        <div className="flex-1 dark:bg-[#18181b] dark:bg-white bg-zinc-900 border dark:border-zinc-800 border-zinc-200 rounded-xl p-4 flex flex-col gap-4">
           <div className="flex justify-between items-center shrink-0">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-zinc-500">{t('app.savedSessions')}</h2>
+            <h2 className="text-xs font-bold uppercase tracking-widest dark:text-zinc-500 text-zinc-500">{t('app.savedSessions')}</h2>
             <div className="flex items-center gap-1">
               <button 
                 onClick={() => setIsImportExportOpen(true)}
-                className="text-zinc-500 hover:text-indigo-400 transition-colors flex items-center justify-center p-1"
+                className="dark:text-zinc-500 text-zinc-500 hover:text-indigo-400 transition-colors flex items-center justify-center p-1"
                 title="Import/Export Sessions"
               >
                 <Archive className="w-4 h-4" />
               </button>
               <button 
                 onClick={() => setIsEditingSession({ authType: 'password', port: 22, tags: [] })}
-                className="text-zinc-500 hover:text-white transition-colors flex items-center justify-center p-1"
+                className="dark:text-zinc-500 text-zinc-500 hover:text-white transition-colors flex items-center justify-center p-1"
               >
                 <Plus className="w-4 h-4" />
               </button>
@@ -375,14 +395,14 @@ export default function App() {
           {/* Search Input */}
           <div className="relative shrink-0">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-3.5 w-3.5 text-zinc-500" />
+              <Search className="h-3.5 w-3.5 dark:text-zinc-500 text-zinc-500" />
             </div>
             <input
               type="text"
               placeholder="Search sessions..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="block w-full pl-9 pr-3 py-1.5 text-xs bg-[#09090b] border border-zinc-800 rounded-md text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-indigo-500 transition-colors"
+              className="block w-full pl-9 pr-3 py-1.5 text-xs dark:bg-[#09090b] bg-zinc-50 border dark:border-zinc-800 border-zinc-200 rounded-md dark:text-zinc-300 text-zinc-700 placeholder-zinc-600 focus:outline-none focus:border-indigo-500 transition-colors"
             />
           </div>
           
@@ -397,7 +417,7 @@ export default function App() {
                     "px-2 py-0.5 text-[10px] rounded uppercase font-bold tracking-tighter transition-colors border",
                     selectedTag === tag 
                       ? "bg-indigo-500/20 text-indigo-400 border-indigo-500/50" 
-                      : "bg-[#09090b] text-zinc-500 border-zinc-800 hover:text-zinc-300"
+                      : "dark:bg-[#09090b] bg-zinc-50 dark:text-zinc-500 text-zinc-500 dark:border-zinc-800 border-zinc-200 hover:dark:text-zinc-300 text-zinc-700"
                   )}
                 >
                   <div className="flex items-center gap-1">
@@ -417,7 +437,7 @@ export default function App() {
                 (s.host && s.host.toLowerCase().includes(searchQuery.toLowerCase()));
               return matchesTag && matchesSearch;
             }).length === 0 ? (
-              <div className="p-4 text-center text-sm text-zinc-500">
+              <div className="p-4 text-center text-sm dark:text-zinc-500 text-zinc-500">
                 {t('app.noSavedSessions')}
               </div>
             ) : (
@@ -431,7 +451,7 @@ export default function App() {
                 <div 
                   key={session.id}
                   className={cn(
-                    "p-3 rounded-lg border transition-colors cursor-pointer group hover:bg-zinc-800/30",
+                    "p-3 rounded-lg border transition-colors cursor-pointer group dark:hover:bg-zinc-800/30 hover:bg-zinc-200/50",
                      "border-transparent"
                   )}
                   onClick={() => openTab(session)}
@@ -445,30 +465,30 @@ export default function App() {
                              prev.includes(session.id) ? prev.filter(id => id !== session.id) : [...prev, session.id]
                            );
                          }}
-                         className="text-zinc-500 hover:text-indigo-400 transition-colors"
+                         className="dark:text-zinc-500 text-zinc-500 hover:text-indigo-400 transition-colors"
                       >
                          {checkedSessionIds.includes(session.id) ? <CheckSquare className="w-3.5 h-3.5 text-indigo-400" /> : <Square className="w-3.5 h-3.5" />}
                       </button>
-                      <span className="text-zinc-400 group-hover:text-zinc-300">
+                      <span className="dark:text-zinc-400 dark:text-zinc-600 text-zinc-400 group-hover:dark:text-zinc-300 text-zinc-700">
                         {session.name || session.host}
                       </span>
                     </div>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button 
                         onClick={(e) => { e.stopPropagation(); setIsEditingSession(session); }}
-                        className="text-zinc-500 hover:text-zinc-300 hidden group-hover:block"
+                        className="dark:text-zinc-500 text-zinc-500 hover:dark:text-zinc-300 text-zinc-700 hidden group-hover:block"
                       >
                         <Edit className="w-3.5 h-3.5" />
                       </button>
                       <button 
                         onClick={(e) => { e.stopPropagation(); deleteSession(session.id); }}
-                        className="text-zinc-500 hover:text-red-400 hidden group-hover:block"
+                        className="dark:text-zinc-500 text-zinc-500 hover:text-red-400 hidden group-hover:block"
                       >
                         <Trash className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
-                  <p className="text-[11px] mt-1 text-zinc-600 truncate">
+                  <p className="text-[11px] mt-1 dark:text-zinc-600 text-zinc-400 truncate">
                     {session.username}@{session.host}:{session.port}
                   </p>
                   {session.tags && session.tags.length > 0 && (
@@ -517,7 +537,7 @@ export default function App() {
         {tabs.length > 0 ? (
           <>
             {/* Tabs Bar */}
-            <div className="h-10 bg-[#18181b] border border-zinc-800 rounded-xl flex items-center px-2 shrink-0 overflow-x-auto custom-scrollbar gap-1 mb-4">
+            <div className="h-10 dark:bg-[#18181b] dark:bg-white bg-zinc-900 border dark:border-zinc-800 border-zinc-200 rounded-xl flex items-center px-2 shrink-0 overflow-x-auto custom-scrollbar gap-1 mb-4">
                {tabs.map((tab) => (
                  <div
                    key={tab.id}
@@ -529,7 +549,7 @@ export default function App() {
                      "px-4 py-1.5 rounded-lg text-xs font-mono font-bold uppercase tracking-widest flex items-center gap-2 cursor-pointer transition-colors whitespace-nowrap shrink-0",
                      activeTabId === tab.id 
                        ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30" 
-                       : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
+                       : "dark:text-zinc-500 text-zinc-500 hover:dark:text-zinc-300 text-zinc-700 dark:hover:bg-zinc-800 hover:bg-zinc-200"
                    )}
                  >
                    <span className={cn("w-2 h-2 rounded-full", activeTabId === tab.id ? "bg-emerald-500" : "bg-zinc-600")}></span>
@@ -545,7 +565,7 @@ export default function App() {
             </div>
 
             {/* Terminal Container */}
-            <div className="flex-1 bg-black border border-zinc-800 rounded-xl p-0 font-mono text-sm overflow-hidden flex flex-col relative w-full min-h-0">
+            <div className="flex-1 dark:bg-black bg-zinc-100 border dark:border-zinc-800 border-zinc-200 rounded-xl p-0 font-mono text-sm overflow-hidden flex flex-col relative w-full min-h-0">
                {tabs.map((tab) => (
                  <div 
                    key={tab.id} 
@@ -581,16 +601,16 @@ export default function App() {
             {/* Session Info Panel (CPU/Memory/Upload) */}
             <div 
               style={{ height: `${bottomPanelHeight}px` }}
-              className="shrink-0 rounded-xl border border-zinc-800 overflow-hidden shadow-xl"
+              className="shrink-0 rounded-xl border dark:border-zinc-800 border-zinc-200 overflow-hidden shadow-xl"
             >
                <SessionInfoPanel session={activeSession!} />
             </div>
           </>
         ) : (
-          <div className="flex-1 bg-[#18181b] border border-zinc-800 rounded-xl flex flex-col items-center justify-center gap-4 text-zinc-500 p-8">
+          <div className="flex-1 dark:bg-[#18181b] dark:bg-white bg-zinc-900 border dark:border-zinc-800 border-zinc-200 rounded-xl flex flex-col items-center justify-center gap-4 dark:text-zinc-500 text-zinc-500 p-8">
              <TerminalSquare className="w-16 h-16 opacity-20 mb-4" />
              <div className="text-center space-y-2">
-               <h3 className="text-zinc-300 font-medium tracking-widest text-xs uppercase font-bold">{t('app.noActiveSession')}</h3>
+               <h3 className="dark:text-zinc-300 text-zinc-700 font-medium tracking-widest text-xs uppercase font-bold">{t('app.noActiveSession')}</h3>
                <p className="text-sm">{t('app.selectSessionHint')}</p>
              </div>
           </div>
@@ -617,7 +637,7 @@ export default function App() {
           style={{ width: `${rightSidebarWidth}px` }}
           className="shrink-0 flex flex-col gap-4 relative z-20"
         >
-          <div className="flex-1 bg-[#18181b] border border-zinc-800 rounded-xl flex flex-col overflow-hidden max-h-full">
+          <div className="flex-1 dark:bg-[#18181b] dark:bg-white bg-zinc-900 border dark:border-zinc-800 border-zinc-200 rounded-xl flex flex-col overflow-hidden max-h-full">
             <AIChatComponent 
               terminalContext={activeTabId ? terminalContexts[activeTabId] || '' : ''} 
               onExecuteCommand={(cmd) => {
@@ -634,13 +654,13 @@ export default function App() {
           style={{ width: `${rightSidebarWidth}px` }}
           className="shrink-0 flex flex-col gap-4 relative z-20"
         >
-           <div className="h-48 bg-[#18181b] border border-zinc-800 rounded-xl p-4 flex flex-col opacity-50">
-             <h2 className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-2">{t('app.workspace')}</h2>
-             <div className="flex-1 flex items-center justify-center text-sm text-zinc-600 font-mono">{t('app.standbyMode')}</div>
+           <div className="h-48 dark:bg-[#18181b] dark:bg-white bg-zinc-900 border dark:border-zinc-800 border-zinc-200 rounded-xl p-4 flex flex-col opacity-50">
+             <h2 className="text-xs font-bold uppercase tracking-widest dark:text-zinc-500 text-zinc-500 mb-2">{t('app.workspace')}</h2>
+             <div className="flex-1 flex items-center justify-center text-sm dark:text-zinc-600 text-zinc-400 font-mono">{t('app.standbyMode')}</div>
            </div>
-           <div className="flex-1 bg-[#18181b] border border-zinc-800 rounded-xl p-4 flex flex-col items-center justify-center opacity-50 text-center gap-3">
-              <Bot className="w-8 h-8 text-zinc-600" />
-              <p className="text-xs text-zinc-500">{t('app.connectToChat')}</p>
+           <div className="flex-1 dark:bg-[#18181b] dark:bg-white bg-zinc-900 border dark:border-zinc-800 border-zinc-200 rounded-xl p-4 flex flex-col items-center justify-center opacity-50 text-center gap-3">
+              <Bot className="w-8 h-8 dark:text-zinc-600 text-zinc-400" />
+              <p className="text-xs dark:text-zinc-500 text-zinc-500">{t('app.connectToChat')}</p>
            </div>
         </aside>
       )}
