@@ -1,6 +1,7 @@
 {
   "app": {
     "title": "AI-SSH",
+    "resetLayout": "重置布局",
     "savedSessions": "已保存会话",
     "noSavedSessions": "暂无保存的会话。",
     "aiAssistant": "AI助手",

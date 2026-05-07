@@ -1,6 +1,7 @@
 {
   "app": {
     "title": "AI-SSH",
+    "resetLayout": "Reset Layout",
     "savedSessions": "Saved Sessions",
     "noSavedSessions": "No saved sessions.",
     "aiAssistant": "AI Assistant",

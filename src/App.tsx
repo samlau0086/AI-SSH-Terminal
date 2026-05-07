@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { TerminalSquare, MessageSquare, Save, Settings, Plus, Play, Tag, Edit, Trash, X, Bot, Globe, LogOut, Users, Search, Archive, Sun, Moon } from 'lucide-react';
+import { TerminalSquare, MessageSquare, Save, Settings, Plus, Play, Tag, Edit, Trash, X, Bot, Globe, LogOut, Users, Search, Archive, Sun, Moon, LayoutTemplate } from 'lucide-react';
 import { cn } from './lib/utils';
 import TerminalComponent, { TerminalRef } from './components/TerminalComponent';
 import QuickCommands from './components/QuickCommands';
@@ -102,12 +102,39 @@ export default function App() {
   const terminalRefs = useRef<Record<string, TerminalRef>>({});
 
   // Resizable Sidebars Logic
-  const [leftSidebarWidth, setLeftSidebarWidth] = useState(350);
-  const [rightSidebarWidth, setRightSidebarWidth] = useState(380);
-  const [bottomPanelHeight, setBottomPanelHeight] = useState(180);
+  const [leftSidebarWidth, setLeftSidebarWidth] = useState(() => {
+    const saved = localStorage.getItem('ai-ssh-left-width');
+    return saved ? parseInt(saved, 10) : 350;
+  });
+  const [rightSidebarWidth, setRightSidebarWidth] = useState(() => {
+    const saved = localStorage.getItem('ai-ssh-right-width');
+    return saved ? parseInt(saved, 10) : 380;
+  });
+  const [bottomPanelHeight, setBottomPanelHeight] = useState(() => {
+    const saved = localStorage.getItem('ai-ssh-bottom-height');
+    return saved ? parseInt(saved, 10) : 180;
+  });
   const [isResizingLeft, setIsResizingLeft] = useState(false);
   const [isResizingRight, setIsResizingRight] = useState(false);
   const [isResizingMain, setIsResizingMain] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem('ai-ssh-left-width', leftSidebarWidth.toString());
+  }, [leftSidebarWidth]);
+
+  useEffect(() => {
+    localStorage.setItem('ai-ssh-right-width', rightSidebarWidth.toString());
+  }, [rightSidebarWidth]);
+
+  useEffect(() => {
+    localStorage.setItem('ai-ssh-bottom-height', bottomPanelHeight.toString());
+  }, [bottomPanelHeight]);
+
+  const resetLayout = useCallback(() => {
+    setLeftSidebarWidth(350);
+    setRightSidebarWidth(380);
+    setBottomPanelHeight(180);
+  }, []);
 
   const startResizingLeft = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -346,6 +373,13 @@ export default function App() {
             title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
           >
             {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+          </button>
+          <button
+            onClick={resetLayout}
+            className="text-zinc-500 hover:dark:text-zinc-300 ml-2"
+            title={t('app.resetLayout') || 'Reset Layout'}
+          >
+            <LayoutTemplate className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={() => setIsSettingsOpen(true)}
