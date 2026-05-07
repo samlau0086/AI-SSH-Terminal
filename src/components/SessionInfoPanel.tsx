@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Session } from '../App';
-import { Activity, Upload, HardDrive, Cpu, Check, X, AlertCircle, Folder, File as FileIcon, Download, RefreshCw, ChevronRight, Trash } from 'lucide-react';
+import { Activity, Upload, HardDrive, Cpu, Check, X, AlertCircle, Folder, File as FileIcon, Download, RefreshCw, ChevronRight, Trash, Database } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../lib/utils';
 
@@ -252,9 +252,10 @@ export default function SessionInfoPanel({ session }: Props) {
      return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   };
 
-  // Parse `statsStr` which has output from `top -b -n 1 | head -n 5 && free -m`
+  // Parse `statsStr` which has output from `top -b -n 1 | head -n 5 && free -m && df -m /`
   let cpuUsage = 'N/A';
   let memUsage = 'N/A';
+  let diskUsage = 'N/A';
 
   if (statsStr) {
      const cpuMatch = statsStr.match(/%Cpu\(s\).*?(\d+\.\d+)\s*id/);
@@ -272,6 +273,11 @@ export default function SessionInfoPanel({ session }: Props) {
          if (total > 0) {
              memUsage = ((used / total) * 100).toFixed(1) + '%';
          }
+     }
+     
+     const diskMatch = statsStr.match(/(\d+)%\s+\/\s*$/m);
+     if (diskMatch) {
+         diskUsage = diskMatch[1] + '%';
      }
   }
 
@@ -310,6 +316,15 @@ export default function SessionInfoPanel({ session }: Props) {
                 </div>
                 <div className="w-full bg-zinc-200 dark:bg-zinc-800 rounded-full h-1.5">
                     <div className="bg-emerald-500 h-1.5 rounded-full transition-all duration-500" style={{ width: memUsage === 'N/A' ? '0%' : memUsage }}></div>
+                </div>
+             </div>
+             <div>
+                <div className="flex justify-between text-zinc-500 dark:text-zinc-400 mb-1 font-mono">
+                    <span className="flex items-center gap-1.5"><Database className="w-3.5 h-3.5" /> Storage</span>
+                    <span>{diskUsage}</span>
+                </div>
+                <div className="w-full bg-zinc-200 dark:bg-zinc-800 rounded-full h-1.5">
+                    <div className="bg-amber-500 h-1.5 rounded-full transition-all duration-500" style={{ width: diskUsage === 'N/A' ? '0%' : diskUsage }}></div>
                 </div>
              </div>
          </div>

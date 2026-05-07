@@ -349,7 +349,7 @@ export function createApiRouter(db: any) {
 
        const sshClient = new Client();
        sshClient.on('ready', () => {
-           sshClient.exec("top -b -n 1 | head -n 5 && free -m", (err, stream) => {
+           sshClient.exec("top -b -n 1 | head -n 5 && free -m && df -m /", (err, stream) => {
                if (err) {
                    sshClient.end();
                    return res.status(500).json({ error: err.message });
