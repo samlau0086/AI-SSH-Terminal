@@ -7,6 +7,7 @@ import type { Session } from '../App';
 import { RefreshCw, Unplug, AlertCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../hooks/useTheme';
+import TextareaAutosize from 'react-textarea-autosize';
 
 interface Props {
   session: Session;
@@ -69,8 +70,11 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, onContextUp
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'ArrowUp') {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleCommandSubmit(e as any);
+    } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       if (history.length > 0) {
         const nextIndex = Math.min(historyIndex + 1, history.length - 1);
@@ -342,22 +346,23 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, onContextUp
       {/* Command Input Bar */}
       <form 
         onSubmit={handleCommandSubmit}
-        className="mt-2 shrink-0 flex items-center bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 rounded-md p-1 relative z-10"
+        className="mt-2 shrink-0 flex items-end bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 rounded-md p-1 relative z-10"
       >
-        <span className="text-zinc-500 font-mono text-xs ml-2 mr-2 shrink-0">$</span>
-        <input 
-          type="text"
+        <span className="text-zinc-500 font-mono text-xs ml-2 mr-2 shrink-0 mb-2">$</span>
+        <TextareaAutosize
           value={cmdInput}
           onChange={e => setCmdInput(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={t('terminal.typeCommand')}
-          className="flex-1 bg-transparent border-none outline-none text-zinc-700 dark:text-zinc-300 font-mono text-xs placeholder:dark:text-zinc-600 text-zinc-500 text-zinc-500 dark:text-zinc-400"
+          minRows={1}
+          maxRows={6}
+          className="flex-1 bg-transparent border-none outline-none text-zinc-700 dark:text-zinc-300 font-mono text-xs placeholder:dark:text-zinc-600 disabled:opacity-50 resize-none py-1.5"
           disabled={status !== 'connected'}
         />
         <button 
           type="submit" 
           disabled={status !== 'connected' || !cmdInput.trim()}
-          className="text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1 rounded disabled:opacity-50 transition-colors uppercase font-bold tracking-widest"
+          className="text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1 rounded disabled:opacity-50 transition-colors uppercase font-bold tracking-widest shrink-0 mb-0.5 ml-2"
         >
           {t('chat.run' /* we can just use send/run translation */)}
         </button>
