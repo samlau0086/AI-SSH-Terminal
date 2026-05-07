@@ -126,16 +126,16 @@ export default function ImportExportModal({ sessions, onImport, onClose }: Impor
   };
 
   return (
-    <div className="fixed inset-0 dark:bg-black/60 bg-zinc-500/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="dark:bg-[#18181b] dark:bg-white bg-zinc-900 border dark:border-zinc-800 border-zinc-200 rounded-xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col">
-        <div className="flex items-center justify-between p-4 border-b dark:border-zinc-800 border-zinc-200">
-          <h3 className="text-sm font-bold tracking-wider dark:text-zinc-200 text-zinc-800">Import / Export Sessions</h3>
-          <button onClick={onClose} className="dark:text-zinc-500 text-zinc-500 hover:dark:text-zinc-300 text-zinc-700">
+    <div className="fixed inset-0 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 rounded-xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col">
+        <div className="flex items-center justify-between p-4 border-b border-zinc-200 dark:border-zinc-800">
+          <h3 className="text-sm font-bold tracking-wider text-zinc-800 dark:text-zinc-200">Import / Export Sessions</h3>
+          <button onClick={onClose} className="text-zinc-500 hover:dark:text-zinc-300">
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="flex border-b dark:border-zinc-800 border-zinc-200">
+        <div className="flex border-b border-zinc-200 dark:border-zinc-800">
           <button
             className={`flex-1 py-3 text-xs font-bold tracking-wider uppercase ${activeTab === 'export' ? 'text-indigo-400 border-b-2 border-indigo-500 bg-indigo-500/10' : 'dark:text-zinc-500 text-zinc-500 hover:bg-zinc-800/50'}`}
             onClick={() => setActiveTab('export')}
@@ -153,14 +153,14 @@ export default function ImportExportModal({ sessions, onImport, onClose }: Impor
         <div className="p-6">
           {activeTab === 'export' ? (
             <div className="space-y-4">
-              <div className="bg-zinc-900/50 p-4 rounded-lg border dark:border-zinc-800 border-zinc-200">
+              <div className="bg-zinc-900/50 p-4 rounded-lg border border-zinc-200 dark:border-zinc-800">
                 <div className="flex items-start gap-3">
                   <div className="p-2 bg-indigo-500/20 rounded-md shrink-0">
                     <Download className="w-5 h-5 text-indigo-400" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-medium dark:text-zinc-300 text-zinc-700 mb-1">Export your configurations</h4>
-                    <p className="text-xs dark:text-zinc-500 text-zinc-500 leading-relaxed">
+                    <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Export your configurations</h4>
+                    <p className="text-xs text-zinc-500 leading-relaxed">
                       Download a strongly encrypted backup of all your saved sessions, including passwords and private keys. Keep this file safe.
                     </p>
                   </div>
@@ -168,7 +168,7 @@ export default function ImportExportModal({ sessions, onImport, onClose }: Impor
               </div>
 
               <div>
-                 <label className="block text-xs font-medium dark:text-zinc-400 dark:text-zinc-600 text-zinc-400 mb-1.5 flex items-center gap-2">
+                 <label className="block text-xs font-medium text-zinc-500 text-zinc-500 dark:text-zinc-400 mb-1.5 flex items-center gap-2">
                     <KeySquare className="w-3.5 h-3.5" />
                     Encryption Password
                  </label>
@@ -177,9 +177,9 @@ export default function ImportExportModal({ sessions, onImport, onClose }: Impor
                     value={exportPassword}
                     onChange={(e) => setExportPassword(e.target.value)}
                     placeholder="Enter a strong password"
-                    className="w-full dark:bg-[#09090b] bg-zinc-50 border dark:border-zinc-800 border-zinc-200 rounded-lg px-3 py-2 text-sm dark:text-zinc-300 text-zinc-700 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-mono"
+                    className="w-full bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-mono"
                  />
-                 <p className="text-[10px] dark:text-zinc-500 text-zinc-500 mt-1.5 ml-1">You will need this password to import the file later.</p>
+                 <p className="text-[10px] text-zinc-500 mt-1.5 ml-1">You will need this password to import the file later.</p>
               </div>
 
               <button
@@ -193,14 +193,14 @@ export default function ImportExportModal({ sessions, onImport, onClose }: Impor
             </div>
           ) : (
             <div className="space-y-4">
-               <div className="bg-zinc-900/50 p-4 rounded-lg border dark:border-zinc-800 border-zinc-200">
+               <div className="bg-zinc-900/50 p-4 rounded-lg border border-zinc-200 dark:border-zinc-800">
                 <div className="flex items-start gap-3">
                   <div className="p-2 bg-emerald-500/20 rounded-md shrink-0">
                     <Upload className="w-5 h-5 text-emerald-400" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-medium dark:text-zinc-300 text-zinc-700 mb-1">Restore from backup</h4>
-                    <p className="text-xs dark:text-zinc-500 text-zinc-500 leading-relaxed">
+                    <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Restore from backup</h4>
+                    <p className="text-xs text-zinc-500 leading-relaxed">
                       Import a previously exported encrypted backup file. Existing sessions with the same ID will be overwritten.
                     </p>
                   </div>
@@ -208,7 +208,7 @@ export default function ImportExportModal({ sessions, onImport, onClose }: Impor
               </div>
 
               <div>
-                 <label className="block text-xs font-medium dark:text-zinc-400 dark:text-zinc-600 text-zinc-400 mb-1.5 flex items-center gap-2">
+                 <label className="block text-xs font-medium text-zinc-500 text-zinc-500 dark:text-zinc-400 mb-1.5 flex items-center gap-2">
                     <FileJson className="w-3.5 h-3.5" />
                     Backup File
                  </label>
@@ -217,12 +217,12 @@ export default function ImportExportModal({ sessions, onImport, onClose }: Impor
                     ref={fileInputRef}
                     onChange={handleFileChange}
                     accept=".enc"
-                    className="w-full dark:bg-[#09090b] bg-zinc-50 border dark:border-zinc-800 border-zinc-200 rounded-lg px-3 py-1.5 text-sm dark:text-zinc-300 text-zinc-700 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-emerald-500/10 file:text-emerald-400 hover:file:bg-emerald-500/20"
+                    className="w-full bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-1.5 text-sm text-zinc-700 dark:text-zinc-300 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-emerald-500/10 file:text-emerald-400 hover:file:bg-emerald-500/20"
                  />
               </div>
 
               <div>
-                 <label className="block text-xs font-medium dark:text-zinc-400 dark:text-zinc-600 text-zinc-400 mb-1.5 flex items-center gap-2">
+                 <label className="block text-xs font-medium text-zinc-500 text-zinc-500 dark:text-zinc-400 mb-1.5 flex items-center gap-2">
                     <KeySquare className="w-3.5 h-3.5" />
                     Decryption Password
                  </label>
@@ -231,7 +231,7 @@ export default function ImportExportModal({ sessions, onImport, onClose }: Impor
                     value={importPassword}
                     onChange={(e) => setImportPassword(e.target.value)}
                     placeholder="Enter the password used during export"
-                    className="w-full dark:bg-[#09090b] bg-zinc-50 border dark:border-zinc-800 border-zinc-200 rounded-lg px-3 py-2 text-sm dark:text-zinc-300 text-zinc-700 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all font-mono"
+                    className="w-full bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all font-mono"
                  />
               </div>
 

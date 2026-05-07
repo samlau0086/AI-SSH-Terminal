@@ -187,7 +187,7 @@ ${terminalContext || "No terminal context available yet."}
 
   return (
     <div className="flex flex-col h-full bg-transparent">
-      <div className="p-4 border-b dark:border-zinc-800 border-zinc-200 flex items-center justify-between shrink-0">
+      <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between shrink-0">
         <h2 className="text-xs font-bold uppercase tracking-widest text-indigo-400 flex items-center gap-2">
           <Bot className="w-4 h-4" />
           {t('chat.aiAssistant')}
@@ -207,14 +207,14 @@ ${terminalContext || "No terminal context available yet."}
               "max-w-[85%] rounded-lg p-3 text-sm",
               msg.role === 'user' 
                 ? "bg-zinc-800 text-zinc-100" 
-                : "bg-zinc-900 border dark:border-zinc-800 border-zinc-200 dark:text-zinc-300 text-zinc-700"
+                : "border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300"
             )}>
               {msg.role === 'user' ? (
                 <div className="whitespace-pre-wrap">{msg.content}</div>
               ) : (
                 <div className="prose prose-invert prose-sm max-w-none 
-                  prose-p:leading-relaxed prose-pre:dark:bg-black/50 bg-zinc-200/50 prose-pre:border prose-pre:dark:border-zinc-800 border-zinc-200
-                  prose-code:text-indigo-400 prose-code:bg-indigo-400/10 prose-code:px-1 prose-code:py-0.5 prose-code:rounded">
+                  prose-p:leading-relaxed prose-pre:bg-zinc-100 prose-pre:dark:bg-black/50 prose-pre:border prose-pre:border-zinc-200 prose-pre:dark:border-zinc-800
+                  prose-code:text-indigo-400 prose-code:bg-indigo-500/10 prose-code:px-1 prose-code:py-0.5 prose-code:rounded">
                   <Markdown
                     components={{
                       code({node, inline, className, children, ...props}: any) {
@@ -233,7 +233,7 @@ ${terminalContext || "No terminal context available yet."}
                               )}
                               <button
                                 onClick={() => copyCommand(String(children).replace(/\n$/, ''))}
-                                className="bg-zinc-800 hover:bg-zinc-700 dark:text-zinc-300 text-zinc-700 p-1.5 rounded-md text-xs flex items-center gap-1"
+                                className="bg-zinc-800 hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 p-1.5 rounded-md text-xs flex items-center gap-1"
                               >
                                 {copiedText === String(children).replace(/\n$/, '') ? (
                                   <>
@@ -274,7 +274,7 @@ ${terminalContext || "No terminal context available yet."}
             <div className="w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
               <Bot className="w-4 h-4" />
             </div>
-            <div className="bg-zinc-900 border dark:border-zinc-800 border-zinc-200 rounded-lg p-3 text-sm flex items-center gap-1">
+            <div className="border border-zinc-200 dark:border-zinc-800 rounded-lg p-3 text-sm flex items-center gap-1">
               <span className="w-1.5 h-1.5 bg-zinc-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
               <span className="w-1.5 h-1.5 bg-zinc-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
               <span className="w-1.5 h-1.5 bg-zinc-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
@@ -284,13 +284,13 @@ ${terminalContext || "No terminal context available yet."}
         <div ref={messagesEndRef} />
       </div>
 
-      <form onSubmit={handleSubmit} className="p-4 border-t dark:border-zinc-800 border-zinc-200 dark:bg-[#18181b] dark:bg-white bg-zinc-900 flex flex-col shrink-0">
+      <form onSubmit={handleSubmit} className="p-4 border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#18181b] flex flex-col shrink-0">
         {messages.length <= 3 && (
           <div className="flex gap-2 overflow-x-auto pb-3 custom-scrollbar">
             <button
               type="button"
               onClick={() => sendPrompt(t('chat.qaDeployGithubPrompt'))}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-800 hover:bg-zinc-700 text-[10px] sm:text-xs dark:text-zinc-300 text-zinc-700 font-medium tracking-wide transition-colors whitespace-nowrap shrink-0"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-[10px] sm:text-xs text-zinc-700 dark:text-zinc-300 font-medium tracking-wide transition-colors whitespace-nowrap shrink-0"
             >
               <Rocket className="w-3.5 h-3.5 text-indigo-400" />
               {t('chat.qaDeployGithub')}
@@ -298,21 +298,21 @@ ${terminalContext || "No terminal context available yet."}
             <button
               type="button"
               onClick={() => sendPrompt(t('chat.qaCheckSystemPrompt'))}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-800 hover:bg-zinc-700 text-[10px] sm:text-xs dark:text-zinc-300 text-zinc-700 font-medium tracking-wide transition-colors whitespace-nowrap shrink-0"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-[10px] sm:text-xs text-zinc-700 dark:text-zinc-300 font-medium tracking-wide transition-colors whitespace-nowrap shrink-0"
             >
               <Activity className="w-3.5 h-3.5 text-emerald-400" />
               {t('chat.qaCheckSystem')}
             </button>
           </div>
         )}
-        <div className="h-12 bg-zinc-900 border border-zinc-700 rounded-lg flex items-center px-4 gap-3 focus-within:border-indigo-500/50 focus-within:ring-1 focus-within:ring-indigo-500/50 transition-all">
+        <div className="h-12 border border-zinc-700 rounded-lg flex items-center px-4 gap-3 focus-within:border-indigo-500/50 focus-within:ring-1 focus-within:ring-indigo-500/50 transition-all">
           <span className="text-indigo-400 font-bold text-xs uppercase tracking-widest hidden sm:inline">{t('chat.aiCmd')}</span>
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder={t('chat.askAi')}
-            className="bg-transparent flex-1 outline-none dark:text-zinc-200 text-zinc-800 text-xs h-full"
+            className="bg-transparent flex-1 outline-none text-zinc-800 dark:text-zinc-200 text-xs h-full"
           />
           <div className="flex gap-1 shrink-0">
             <button
