@@ -13,13 +13,14 @@ interface Props {
   session: Session;
   onContextUpdate: (context: string) => void;
   historySize?: number;
+  multiLineCommandDelay?: number;
 }
 
 export interface TerminalRef {
   executeCommand: (cmd: string) => void;
 }
 
-const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, onContextUpdate, historySize = 200 }, ref) => {
+const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, onContextUpdate, historySize = 200, multiLineCommandDelay = 0 }, ref) => {
   const { t } = useTranslation();
   const { isDark } = useTheme();
   const terminalRef = useRef<HTMLDivElement>(null);
@@ -40,26 +41,40 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, onContextUp
     localStorage.setItem('ai-ssh-cmd-history', JSON.stringify(history));
   }, [history]);
 
+  const runCommand = async (cmd: string) => {
+    if (!socket || status !== 'connected') return;
+
+    if (multiLineCommandDelay > 0) {
+      // Split by newline and filter out entirely empty lines if needed,
+      // but usually user might want empty lines. Let's send exactly what's typed.
+      const lines = cmd.split('\n');
+      for (let i = 0; i < lines.length; i++) {
+        socket.emit('ssh-data', lines[i] + '\n');
+        if (i < lines.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, multiLineCommandDelay));
+        }
+      }
+    } else {
+      const fullCmd = cmd.endsWith('\n') ? cmd : cmd + '\n';
+      socket.emit('ssh-data', fullCmd);
+    }
+  };
+
   useImperativeHandle(ref, () => ({
     executeCommand: (cmd: string) => {
-      // If we are connected and socket exists, send the command + newline
-      if (socket && status === 'connected') {
-        const fullCmd = cmd.endsWith('\n') ? cmd : cmd + '\n';
-        socket.emit('ssh-data', fullCmd);
-        
+      runCommand(cmd).then(() => {
         // Let's also ensure the terminal gets focus
         setTimeout(() => {
           xtermRef.current?.focus();
         }, 100);
-      }
+      });
     }
   }));
 
   const handleCommandSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (cmdInput.trim() && socket && status === 'connected') {
-      const fullCmd = cmdInput + '\n';
-      socket.emit('ssh-data', fullCmd);
+      runCommand(cmdInput);
       
       setHistory(prev => {
         const newHistory = [cmdInput, ...prev.filter(c => c !== cmdInput)].slice(0, historySize);

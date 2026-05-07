@@ -10,6 +10,7 @@ export interface AISettings {
   baseUrl: string;
   model: string;
   commandHistorySize?: number;
+  multiLineCommandDelay?: number;
 }
 
 interface Props {
@@ -150,16 +151,30 @@ export default function SettingsModal({ settings, onSave, onClose }: Props) {
               />
             </div>
             
-            <div>
-              <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5">Command History Size</label>
-              <input 
-                type="number" 
-                min="1"
-                max="1000"
-                value={formData.commandHistorySize || 200}
-                onChange={e => setFormData({...formData, commandHistorySize: parseInt(e.target.value) || 200})}
-                className="w-full bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 text-zinc-800 dark:text-zinc-200"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5">{t('settings.commandHistorySize', 'Command History Size')}</label>
+                <input 
+                  type="number" 
+                  min="1"
+                  max="1000"
+                  value={formData.commandHistorySize || 200}
+                  onChange={e => setFormData({...formData, commandHistorySize: parseInt(e.target.value) || 200})}
+                  className="w-full bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 text-zinc-800 dark:text-zinc-200"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5">{t('settings.multiLineCommandDelay', 'Multi-Line Delay (ms)')}</label>
+                <input 
+                  type="number" 
+                  min="0"
+                  max="5000"
+                  step="50"
+                  value={formData.multiLineCommandDelay || 0}
+                  onChange={e => setFormData({...formData, multiLineCommandDelay: parseInt(e.target.value) || 0})}
+                  className="w-full bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 text-zinc-800 dark:text-zinc-200"
+                />
+              </div>
             </div>
             
             {testStatus !== 'idle' && (

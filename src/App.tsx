@@ -613,6 +613,7 @@ export default function App() {
                      session={tab.session} 
                      onContextUpdate={ctx => setTerminalContexts(prev => ({...prev, [tab.id]: ctx}))}
                      historySize={aiSettings.commandHistorySize}
+                     multiLineCommandDelay={aiSettings.multiLineCommandDelay}
                    />
                  </div>
                ))}
