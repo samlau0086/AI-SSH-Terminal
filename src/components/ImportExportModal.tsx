@@ -153,7 +153,7 @@ export default function ImportExportModal({ sessions, onImport, onClose }: Impor
         <div className="p-6">
           {activeTab === 'export' ? (
             <div className="space-y-4">
-              <div className="bg-zinc-900/50 p-4 rounded-lg border border-zinc-200 dark:border-zinc-800">
+              <div className="p-4 rounded-lg border border-zinc-200 dark:border-zinc-800">
                 <div className="flex items-start gap-3">
                   <div className="p-2 bg-indigo-500/20 rounded-md shrink-0">
                     <Download className="w-5 h-5 text-indigo-400" />
@@ -193,7 +193,7 @@ export default function ImportExportModal({ sessions, onImport, onClose }: Impor
             </div>
           ) : (
             <div className="space-y-4">
-               <div className="bg-zinc-900/50 p-4 rounded-lg border border-zinc-200 dark:border-zinc-800">
+               <div className="p-4 rounded-lg border border-zinc-200 dark:border-zinc-800">
                 <div className="flex items-start gap-3">
                   <div className="p-2 bg-emerald-500/20 rounded-md shrink-0">
                     <Upload className="w-5 h-5 text-emerald-400" />
