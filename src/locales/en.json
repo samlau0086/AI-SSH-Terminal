@@ -41,6 +41,7 @@
     "modelPlaceholder": "e.g., gpt-4o or gemini-2.5-pro",
     "commandHistorySize": "Command History Size",
     "multiLineCommandDelay": "Multi-Line Delay (ms)",
+    "statsRefreshInterval": "Stats Refresh Interval (ms)",
     "save": "Save Changes",
     "cancel": "Cancel",
     "description": "Configure your AI provider credentials. API keys are stored locally in your browser."

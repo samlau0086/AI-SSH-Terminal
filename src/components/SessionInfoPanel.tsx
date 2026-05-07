@@ -7,6 +7,7 @@ import { cn } from '../lib/utils';
 
 interface Props {
   session: Session;
+  refreshInterval?: number;
 }
 
 interface RemoteFile {
@@ -22,7 +23,7 @@ interface RemoteFile {
   }
 }
 
-export default function SessionInfoPanel({ session }: Props) {
+export default function SessionInfoPanel({ session, refreshInterval = 10000 }: Props) {
   const { t } = useTranslation();
   const { token } = useAuth();
   const [statsStr, setStatsStr] = useState<string>('');
@@ -95,7 +96,7 @@ export default function SessionInfoPanel({ session }: Props) {
       } catch (err) {
         console.error(err);
       } finally {
-        if (isMounted) timer = setTimeout(fetchStats, 10000);
+        if (isMounted) timer = setTimeout(fetchStats, refreshInterval);
       }
     };
 

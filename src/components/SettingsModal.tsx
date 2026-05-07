@@ -11,6 +11,7 @@ export interface AISettings {
   model: string;
   commandHistorySize?: number;
   multiLineCommandDelay?: number;
+  statsRefreshInterval?: number;
 }
 
 interface Props {
@@ -175,6 +176,19 @@ export default function SettingsModal({ settings, onSave, onClose }: Props) {
                   className="w-full bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 text-zinc-800 dark:text-zinc-200"
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5">{t('settings.statsRefreshInterval', 'Stats Refresh Interval (ms)')}</label>
+              <input 
+                type="number" 
+                min="1000"
+                max="60000"
+                step="500"
+                value={formData.statsRefreshInterval || 10000}
+                onChange={e => setFormData({...formData, statsRefreshInterval: parseInt(e.target.value) || 10000})}
+                className="w-full bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 text-zinc-800 dark:text-zinc-200"
+              />
             </div>
             
             {testStatus !== 'idle' && (

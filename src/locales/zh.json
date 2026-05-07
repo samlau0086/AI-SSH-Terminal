@@ -41,6 +41,7 @@
     "modelPlaceholder": "例如: gpt-4o 或 gemini-2.5-pro",
     "commandHistorySize": "命令历史记录大小",
     "multiLineCommandDelay": "多行命令发送延迟 (毫秒)",
+    "statsRefreshInterval": "状态刷新间隔 (毫秒)",
     "save": "保存更改",
     "cancel": "取消",
     "description": "配置您的 AI 提供商信息。API密钥将安全地保存在您浏览器的本地存储中。"

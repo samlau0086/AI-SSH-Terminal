@@ -38,6 +38,7 @@ export default function App() {
     const saved = localStorage.getItem('ai-ssh-settings');
     const parsed = saved ? JSON.parse(saved) : { provider: 'gemini', apiKey: '', baseUrl: '', model: 'gemini-2.5-pro' };
     if (!parsed.commandHistorySize) parsed.commandHistorySize = 200;
+    if (!parsed.statsRefreshInterval) parsed.statsRefreshInterval = 10000;
     return parsed;
   });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -638,7 +639,7 @@ export default function App() {
               style={{ height: `${bottomPanelHeight}px` }}
               className="shrink-0 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-xl"
             >
-               <SessionInfoPanel session={activeSession!} />
+               <SessionInfoPanel session={activeSession!} refreshInterval={aiSettings.statsRefreshInterval} />
             </div>
           </>
         ) : (
