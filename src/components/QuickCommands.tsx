@@ -221,7 +221,7 @@ export default function QuickCommands({ onExecuteActive, checkedSessionIds, sess
         
         <button 
           onClick={() => setIsEditing({ name: '', command: '' })}
-          className="text-zinc-500 text-zinc-500 dark:text-zinc-400 bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:dark:text-zinc-200 transition-colors border border-zinc-200 dark:border-zinc-800 rounded-md px-2.5 py-1.5 flex items-center justify-center shrink-0"
+          className="text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:dark:text-zinc-200 transition-colors border border-zinc-200 dark:border-zinc-800 rounded-md px-2.5 py-1.5 flex items-center justify-center shrink-0"
           title="Add Quick Command"
         >
           <Plus className="w-4 h-4" />
