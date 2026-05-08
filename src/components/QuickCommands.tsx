@@ -181,7 +181,7 @@ export default function QuickCommands({ onExecuteActive, checkedSessionIds, sess
                 {commands.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()) || c.command.toLowerCase().includes(searchQuery.toLowerCase())).map(cmd => (
                   <div 
                     key={cmd.id} 
-                    className="flex flex-col gap-0.5 hover:bg-zinc-800/80 rounded-md px-2.5 py-2 group cursor-pointer transition-colors"
+                    className="flex flex-col gap-0.5 hover:bg-zinc-100 dark:hover:bg-zinc-800/80 rounded-md px-2.5 py-2 group cursor-pointer transition-colors"
                     onClick={() => {
                         executeCommand(cmd);
                         setIsDropdownOpen(false);
