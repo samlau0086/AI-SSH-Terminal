@@ -12,6 +12,7 @@ import SettingsModal, { AISettings } from './components/SettingsModal';
 import ImportExportModal from './components/ImportExportModal';
 import AuthPage from './components/AuthPage';
 import AdminModal from './components/AdminModal';
+import SmartMacroAgent from './components/SmartMacroAgent';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from './contexts/AuthContext';
 
@@ -101,6 +102,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [checkedSessionIds, setCheckedSessionIds] = useState<string[]>([]);
   const terminalRefs = useRef<Record<string, TerminalRef>>({});
+  const [activeSmartMacroGoal, setActiveSmartMacroGoal] = useState<string | null>(null);
 
   // Resizable Sidebars Logic
   const [leftSidebarWidth, setLeftSidebarWidth] = useState(() => {
@@ -546,6 +548,13 @@ export default function App() {
                  terminalRefs.current[activeTabId].executeCommand(cmd);
               }
             }} 
+            onRunSmartMacro={(goal) => {
+              if (activeTabId) {
+                setActiveSmartMacroGoal(goal);
+              } else {
+                alert("Please open a terminal session first.");
+              }
+            }}
             checkedSessionIds={checkedSessionIds}
             sessions={sessions}
             hasActiveSession={!!activeSession}
@@ -730,6 +739,20 @@ export default function App() {
       )}
 
       {isAdminOpen && <AdminModal onClose={() => setIsAdminOpen(false)} />}
+
+      {activeSmartMacroGoal && activeTabId && (
+        <SmartMacroAgent 
+          goal={activeSmartMacroGoal}
+          terminalContext={terminalContexts[activeTabId] || ''}
+          onExecuteCommand={(cmd) => {
+            if (terminalRefs.current[activeTabId]) {
+              terminalRefs.current[activeTabId].executeCommand(cmd);
+            }
+          }}
+          onFinish={() => setActiveSmartMacroGoal(null)}
+          aiSettings={aiSettings}
+        />
+      )}
     </div>
   );
 }

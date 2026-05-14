@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { Play, Plus, Edit, Trash, Zap, X, CheckSquare, Square, ChevronDown, Search } from 'lucide-react';
+import { Play, Plus, Edit, Trash, Zap, X, CheckSquare, Square, ChevronDown, Search, Bot } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { cn } from '../lib/utils';
@@ -10,16 +10,18 @@ export interface QuickCommand {
   id: string;
   name: string;
   command: string;
+  isSmart?: boolean;
 }
 
 interface QuickCommandsProps {
   onExecuteActive: (command: string) => void;
+  onRunSmartMacro?: (goal: string) => void;
   checkedSessionIds: string[];
   sessions: Session[];
   hasActiveSession?: boolean;
 }
 
-export default function QuickCommands({ onExecuteActive, checkedSessionIds, sessions }: QuickCommandsProps) {
+export default function QuickCommands({ onExecuteActive, onRunSmartMacro, checkedSessionIds, sessions }: QuickCommandsProps) {
   const { t } = useTranslation();
   const { token } = useAuth();
   const [commands, setCommands] = useState<QuickCommand[]>([]);
@@ -53,7 +55,12 @@ export default function QuickCommands({ onExecuteActive, checkedSessionIds, sess
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
-        setCommands(await res.json());
+        const rawCommands = await res.json();
+        setCommands(rawCommands.map((c: any) => ({
+          ...c,
+          isSmart: c.command.startsWith('SMART::'),
+          command: c.command.startsWith('SMART::') ? c.command.replace('SMART::', '') : c.command
+        })));
       }
     } catch (err) {
       console.error(err);
@@ -66,7 +73,10 @@ export default function QuickCommands({ onExecuteActive, checkedSessionIds, sess
 
     const isNew = !isEditing.id;
     const id = isEditing.id || uuidv4();
-    const payload = { ...isEditing, id };
+    
+    // Store prefix in backend
+    const backendCommand = isEditing.isSmart ? `SMART::${isEditing.command}` : isEditing.command;
+    const payload = { ...isEditing, id, command: backendCommand };
 
     try {
       const res = await fetch(isNew ? '/api/quick-commands' : `/api/quick-commands/${id}`, {
@@ -80,9 +90,9 @@ export default function QuickCommands({ onExecuteActive, checkedSessionIds, sess
       
       if (res.ok) {
         if (isNew) {
-          setCommands([...commands, payload as QuickCommand]);
+          setCommands([...commands, { ...payload, command: isEditing.command, isSmart: !!isEditing.isSmart } as QuickCommand]);
         } else {
-          setCommands(commands.map(c => c.id === id ? payload as QuickCommand : c));
+          setCommands(commands.map(c => c.id === id ? { ...payload, command: isEditing.command, isSmart: !!isEditing.isSmart } as QuickCommand : c));
         }
         setIsEditing(null);
       }
@@ -107,6 +117,15 @@ export default function QuickCommands({ onExecuteActive, checkedSessionIds, sess
   };
 
   const executeCommand = async (cmd: QuickCommand) => {
+    if (cmd.isSmart && onRunSmartMacro) {
+      if (checkedSessionIds.length === 0) {
+        onRunSmartMacro(cmd.command);
+      } else {
+        alert("Smart Macros can only be run on the active session, not multiple sessions.");
+      }
+      return;
+    }
+
     if (checkedSessionIds.length === 0) {
       // Execute only in active terminal
       onExecuteActive(cmd.command);
@@ -188,7 +207,10 @@ export default function QuickCommands({ onExecuteActive, checkedSessionIds, sess
                     }}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-zinc-800 dark:text-zinc-200 font-medium truncate pr-4">{cmd.name}</span>
+                      <div className="flex items-center gap-1.5 flex-1 min-w-0 pr-4">
+                        {cmd.isSmart && <Bot className="w-3.5 h-3.5 text-indigo-500 shrink-0" />}
+                        <span className="text-sm text-zinc-800 dark:text-zinc-200 font-medium truncate">{cmd.name}</span>
+                      </div>
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={(e) => { e.stopPropagation(); setIsEditing(cmd); setIsDropdownOpen(false); }}
@@ -252,15 +274,23 @@ export default function QuickCommands({ onExecuteActive, checkedSessionIds, sess
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-1.5">Command</label>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-1.5">
+                  {isEditing.isSmart ? 'Goal / Prompt' : 'Command'}
+                </label>
                 <textarea
                   required
                   value={isEditing.command || ''}
                   onChange={e => setIsEditing({...isEditing, command: e.target.value})}
-                  rows={3}
+                  rows={4}
                   className="w-full bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 focus:outline-none focus:border-indigo-500 font-mono"
-                  placeholder="e.g. systemctl status nginx"
+                  placeholder={isEditing.isSmart ? "e.g. 1. Run apt-get update\n2. Install nginx and say yes to prompts\n3. Check status" : "e.g. systemctl status nginx"}
                 />
+              </div>
+              <div className="flex items-center gap-2 pt-1 pb-2 cursor-pointer" onClick={() => setIsEditing({...isEditing, isSmart: !isEditing.isSmart})}>
+                <div className={cn("w-4 h-4 rounded border flex items-center justify-center transition-colors", isEditing.isSmart ? "bg-indigo-500 border-indigo-500" : "border-zinc-300 dark:border-zinc-600")}>
+                  {isEditing.isSmart && <CheckSquare className="w-3.5 h-3.5 text-white" />}
+                </div>
+                <span className="text-xs text-zinc-600 dark:text-zinc-400 font-medium">Smart Macro (AI Auto-Pilot)</span>
               </div>
               <div className="flex justify-end gap-2 pt-2">
                  <button 
