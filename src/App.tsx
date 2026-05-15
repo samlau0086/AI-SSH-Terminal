@@ -28,7 +28,40 @@ export interface Session {
   passphrase?: string;
   tags: string[];
   notes: string;
+  expirationDate?: string;
+  renewalCycle?: string;
 }
+
+const getExpirationInfo = (expirationDate?: string, cycleInMonths?: string) => {
+  if (!expirationDate) return null;
+  const expDate = new Date(expirationDate);
+  const now = new Date();
+  const msLeft = expDate.getTime() - now.getTime();
+  const daysLeft = Math.ceil(msLeft / (1000 * 60 * 60 * 24));
+  
+  if (daysLeft < 0) return { text: `Expired (${expDate.toLocaleDateString()})`, color: 'text-red-600 font-bold' };
+  
+  let percent = 100;
+  if (cycleInMonths && cycleInMonths !== 'none') {
+    const cycleMonths = parseInt(cycleInMonths);
+    const startDate = new Date(expDate);
+    startDate.setMonth(startDate.getMonth() - cycleMonths);
+    const totalMs = expDate.getTime() - startDate.getTime();
+    percent = (msLeft / totalMs) * 100;
+  } else {
+    // default cycle to 1 year if not provided
+    const totalMs = 365 * 24 * 60 * 60 * 1000;
+    percent = (msLeft / totalMs) * 100;
+  }
+  
+  let color = 'text-emerald-500';
+  if (percent <= 10) color = 'text-red-600 font-bold';
+  else if (percent <= 20) color = 'text-red-400';
+  else if (percent <= 30) color = 'text-orange-500';
+  else if (percent <= 50) color = 'text-yellow-500';
+  
+  return { text: `Exp: ${expDate.toLocaleDateString()} (${daysLeft}d left)`, color };
+};
 
 export default function App() {
   const { t, i18n } = useTranslation();
@@ -525,9 +558,20 @@ export default function App() {
                       </button>
                     </div>
                   </div>
-                  <p className="text-[11px] mt-1 text-zinc-500 text-zinc-500 dark:text-zinc-400 truncate">
-                    {session.username}@{session.host}:{session.port}
-                  </p>
+                  <div className="flex flex-col gap-1 mt-1">
+                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
+                      {session.username}@{session.host}:{session.port}
+                    </p>
+                    {(() => {
+                      const expInfo = getExpirationInfo(session.expirationDate, session.renewalCycle);
+                      if (!expInfo) return null;
+                      return (
+                        <p className={cn("text-[10px] truncate", expInfo.color)}>
+                          {expInfo.text}
+                        </p>
+                      );
+                    })()}
+                  </div>
                   {session.tags && session.tags.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-1.5">
                       {session.tags.map(tag => (

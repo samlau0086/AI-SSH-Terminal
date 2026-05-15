@@ -7,3 +7,42 @@
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
+
+.react-datepicker-wrapper {
+  width: 100%;
+}
+
+.dark .react-datepicker {
+  background-color: #18181b;
+  border-color: #27272a;
+  color: #e4e4e7;
+}
+
+.dark .react-datepicker__header {
+  background-color: #09090b;
+  border-bottom-color: #27272a;
+}
+
+.dark .react-datepicker__current-month, 
+.dark .react-datepicker-time__header, 
+.dark .react-datepicker-year-header,
+.dark .react-datepicker__day-name {
+  color: #e4e4e7;
+}
+
+.dark .react-datepicker__day {
+  color: #e4e4e7;
+}
+
+.dark .react-datepicker__day:hover {
+  background-color: #27272a;
+}
+
+.dark .react-datepicker__day--keyboard-selected {
+  background-color: #3f3f46;
+}
+
+.dark .react-datepicker__day--selected {
+  background-color: #6366f1;
+  color: #ffffff;
+}

@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { X } from 'lucide-react';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 import type { Session } from '../App';
 import { useTranslation } from 'react-i18next';
 
@@ -224,6 +226,44 @@ export default function SessionForm({ session, onSave, onClose, availableTags = 
                 placeholder={t('sessionForm.envNotes')}
               />
             </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5">Renewal Cycle</label>
+                <select
+                  value={formData.renewalCycle || 'none'}
+                  onChange={e => setFormData({...formData, renewalCycle: e.target.value})}
+                  className="w-full bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 text-zinc-800 dark:text-zinc-200"
+                >
+                  <option value="none">None</option>
+                  <option value="1">1 Month</option>
+                  <option value="3">3 Months</option>
+                  <option value="6">6 Months</option>
+                  <option value="12">1 Year</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5">Expiration Date</label>
+                <DatePicker 
+                  selected={formData.expirationDate ? new Date(formData.expirationDate) : null}
+                  onChange={(date: Date | null) => {
+                    if (date) {
+                      const offset = date.getTimezoneOffset()
+                      const safeDate = new Date(date.getTime() - (offset*60*1000))
+                      setFormData({...formData, expirationDate: safeDate.toISOString().split('T')[0]})
+                    } else {
+                      setFormData({...formData, expirationDate: undefined})
+                    }
+                  }}
+                  className="w-full bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 text-zinc-800 dark:text-zinc-200"
+                  dateFormat="yyyy-MM-dd"
+                  isClearable
+                  placeholderText="yyyy-mm-dd"
+                  wrapperClassName="w-full"
+                />
+              </div>
+            </div>
+
           </div>
 
           <div className="pt-4 flex items-center justify-end gap-3 border-t border-zinc-200 dark:border-zinc-800">

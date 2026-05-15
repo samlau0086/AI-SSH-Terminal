@@ -40,6 +40,8 @@ export async function initDb() {
       passphrase TEXT,
       tags TEXT,
       notes TEXT,
+      expirationDate TEXT,
+      renewalCycle TEXT,
       FOREIGN KEY(userId) REFERENCES users(id) ON DELETE CASCADE
     );
 
@@ -61,6 +63,13 @@ export async function initDb() {
     await db.exec('UPDATE users SET is_approved = 1 WHERE role = "admin";');
     // Set old users to approved? Or maybe they stay unapproved? Let's approve old users to not break existing instances, or leave them as 0 if they want to approve manually. Let's approve all existing for backward compatibility.
     await db.exec('UPDATE users SET is_approved = 1;');
+  }
+
+  try {
+    await db.get('SELECT expirationDate FROM sessions LIMIT 1');
+  } catch(e) {
+    await db.exec('ALTER TABLE sessions ADD COLUMN expirationDate TEXT;');
+    await db.exec('ALTER TABLE sessions ADD COLUMN renewalCycle TEXT;');
   }
 
   return db;
@@ -179,12 +188,12 @@ export function createApiRouter(db: any) {
 
   router.post("/sessions", authenticateToken, async (req: any, res: any) => {
     try {
-      const { id, name, host, port, username, authType, password, privateKey, passphrase, tags, notes } = req.body;
+      const { id, name, host, port, username, authType, password, privateKey, passphrase, tags, notes, expirationDate, renewalCycle } = req.body;
       const formattedPrivateKey = normalizePrivateKey(privateKey);
       await db.run(
-        `INSERT INTO sessions (id, userId, name, host, port, username, authType, password, privateKey, passphrase, tags, notes) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, req.user.id, name, host, port, username, authType, password, formattedPrivateKey, passphrase, JSON.stringify(tags || []), notes]
+        `INSERT INTO sessions (id, userId, name, host, port, username, authType, password, privateKey, passphrase, tags, notes, expirationDate, renewalCycle) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, req.user.id, name, host, port, username, authType, password, formattedPrivateKey, passphrase, JSON.stringify(tags || []), notes, expirationDate, renewalCycle]
       );
       res.json({ success: true });
     } catch (err: any) {
@@ -256,12 +265,12 @@ export function createApiRouter(db: any) {
 
   router.put("/sessions/:id", authenticateToken, async (req: any, res: any) => {
     try {
-        const { name, host, port, username, authType, password, privateKey, passphrase, tags, notes } = req.body;
+        const { name, host, port, username, authType, password, privateKey, passphrase, tags, notes, expirationDate, renewalCycle } = req.body;
         const formattedPrivateKey = normalizePrivateKey(privateKey);
         await db.run(
-          `UPDATE sessions SET name=?, host=?, port=?, username=?, authType=?, password=?, privateKey=?, passphrase=?, tags=?, notes=? 
+          `UPDATE sessions SET name=?, host=?, port=?, username=?, authType=?, password=?, privateKey=?, passphrase=?, tags=?, notes=?, expirationDate=?, renewalCycle=? 
            WHERE id=? AND userId=?`,
-          [name, host, port, username, authType, password, formattedPrivateKey, passphrase, JSON.stringify(tags || []), notes, req.params.id, req.user.id]
+          [name, host, port, username, authType, password, formattedPrivateKey, passphrase, JSON.stringify(tags || []), notes, expirationDate, renewalCycle, req.params.id, req.user.id]
         );
         res.json({ success: true });
     } catch (err: any) {
