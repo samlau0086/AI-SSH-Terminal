@@ -28,6 +28,7 @@ export default function SessionInfoPanel({ session, refreshInterval = 10000 }: P
   const { token } = useAuth();
   const [statsStr, setStatsStr] = useState<string>('');
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [uploadMessage, setUploadMessage] = useState('');
   
@@ -148,6 +149,7 @@ export default function SessionInfoPanel({ session, refreshInterval = 10000 }: P
     if (!file || !token || !session?.id) return;
     
     setIsUploading(true);
+    setUploadProgress(0);
     setUploadStatus('idle');
     const formData = new FormData();
     formData.append('file', file);
@@ -161,34 +163,51 @@ export default function SessionInfoPanel({ session, refreshInterval = 10000 }: P
 
     formData.append('path', finalPath);
 
-    try {
-      const res = await fetch(`/api/sessions/${session.id}/upload`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: formData
-      });
-      let data: any;
-      try {
-         data = await res.json();
-      } catch (e) {
-         throw new Error(`Upload failed with server error (${res.status})`);
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `/api/sessions/${session.id}/upload`, true);
+    xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        const percentComplete = (event.loaded / event.total) * 100;
+        setUploadProgress(Math.round(percentComplete));
       }
-      if (res.ok) {
+    };
+
+    xhr.onload = () => {
+      let data;
+      try {
+        data = JSON.parse(xhr.responseText);
+      } catch (e) {
+        setUploadStatus('error');
+        setUploadMessage(`Upload failed with server error (${xhr.status})`);
+        setIsUploading(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
+      }
+
+      if (xhr.status >= 200 && xhr.status < 300) {
         setUploadStatus('success');
-        setUploadMessage(data.message);
+        setUploadMessage(data.message || 'File uploaded successfully');
         loadFiles(targetPath); // Reload folder
       } else {
         setUploadStatus('error');
         setUploadMessage(data.error || 'Upload failed');
       }
-    } catch (err: any) {
-       setUploadStatus('error');
-       setUploadMessage(err.message);
-    } finally {
-       setIsUploading(false);
-       setTimeout(() => setUploadStatus('idle'), 5000);
-       if (fileInputRef.current) fileInputRef.current.value = '';
-    }
+      setIsUploading(false);
+      setTimeout(() => setUploadStatus('idle'), 5000);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+
+    xhr.onerror = () => {
+      setUploadStatus('error');
+      setUploadMessage('Upload failed due to a network error');
+      setIsUploading(false);
+      setTimeout(() => setUploadStatus('idle'), 5000);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+
+    xhr.send(formData);
   };
 
   const handleDownload = (filename: string) => {
@@ -499,10 +518,30 @@ export default function SessionInfoPanel({ session, refreshInterval = 10000 }: P
              )}
          </div>
 
+         {isUploading && (
+             <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-zinc-900/90 dark:bg-black/90 text-white px-3 py-1.5 rounded shadow-lg text-xs flex flex-col items-center gap-1.5 backdrop-blur-sm z-20 w-48 border border-zinc-800">
+                 <div className="flex justify-between w-full">
+                     <span>Uploading...</span>
+                     <span>{uploadProgress}%</span>
+                 </div>
+                 <div className="w-full bg-zinc-700 h-1.5 rounded-full overflow-hidden">
+                     <div 
+                         className="bg-indigo-500 h-full transition-all duration-300"
+                         style={{ width: `${uploadProgress}%` }}
+                     />
+                 </div>
+             </div>
+         )}
          {uploadStatus === 'success' && (
              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-emerald-500/90 text-white px-3 py-1.5 rounded shadow-lg text-xs flex items-center gap-1.5 backdrop-blur-sm z-20">
                  <Check className="w-3 h-3" />
                  <span>{uploadMessage}</span>
+             </div>
+         )}
+         {uploadStatus === 'error' && (
+             <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-red-500/90 text-white px-3 py-2 rounded shadow-lg text-xs flex items-center gap-1.5 backdrop-blur-sm z-20 max-w-xs">
+                 <X className="w-3.5 h-3.5 flex-shrink-0" />
+                 <span className="truncate" title={uploadMessage}>{uploadMessage}</span>
              </div>
          )}
       </div>
