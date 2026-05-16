@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { X } from 'lucide-react';
+import { X, Eye, EyeOff } from 'lucide-react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import type { Session } from '../App';
@@ -23,6 +23,8 @@ export default function SessionForm({ session, onSave, onClose, availableTags = 
   });
   const [tagInput, setTagInput] = useState('');
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showPassphrase, setShowPassphrase] = useState(false);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -148,13 +150,22 @@ export default function SessionForm({ session, onSave, onClose, availableTags = 
               </div>
 
               {formData.authType === 'password' ? (
-                <input 
-                  type="password" 
-                  value={formData.password || ''}
-                  onChange={e => setFormData({...formData, password: e.target.value})}
-                  placeholder={t('sessionForm.password')}
-                  className="w-full bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 text-zinc-800 dark:text-zinc-200"
-                />
+                <div className="relative">
+                  <input 
+                    type={showPassword ? "text" : "password"} 
+                    value={formData.password || ''}
+                    onChange={e => setFormData({...formData, password: e.target.value})}
+                    placeholder={t('sessionForm.password')}
+                    className="w-full bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-lg pl-3 pr-10 py-2 text-sm focus:outline-none focus:border-indigo-500 text-zinc-800 dark:text-zinc-200"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-500 dark:hover:text-zinc-300"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               ) : (
                 <div className="space-y-2">
                   <textarea 
@@ -163,13 +174,22 @@ export default function SessionForm({ session, onSave, onClose, availableTags = 
                     placeholder="-----BEGIN RSA PRIVATE KEY-----..."
                     className="w-full bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 text-zinc-800 dark:text-zinc-200 font-mono h-24 resize-none"
                   />
-                  <input 
-                    type="password" 
-                    value={formData.passphrase || ''}
-                    onChange={e => setFormData({...formData, passphrase: e.target.value})}
-                    placeholder={t('sessionForm.passphrase')}
-                    className="w-full bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 text-zinc-800 dark:text-zinc-200"
-                  />
+                  <div className="relative">
+                    <input 
+                      type={showPassphrase ? "text" : "password"} 
+                      value={formData.passphrase || ''}
+                      onChange={e => setFormData({...formData, passphrase: e.target.value})}
+                      placeholder={t('sessionForm.passphrase')}
+                      className="w-full bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-lg pl-3 pr-10 py-2 text-sm focus:outline-none focus:border-indigo-500 text-zinc-800 dark:text-zinc-200"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassphrase(!showPassphrase)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-500 dark:hover:text-zinc-300"
+                    >
+                      {showPassphrase ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

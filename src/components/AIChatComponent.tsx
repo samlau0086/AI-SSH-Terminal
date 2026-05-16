@@ -218,14 +218,14 @@ ${terminalContext || "No terminal context available yet."}
                   <Markdown
                     components={{
                       code({node, inline, className, children, ...props}: any) {
-                        const match = /language-(\w+)/.exec(className || '')
-                        return !inline && match ? (
+                        const match = /language-(\w+)/.exec(className || '');
+                        return !inline ? (
                           <div className="relative group mt-2 mb-4">
                             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
                               {onExecuteCommand && (
                                 <button
                                   onClick={() => onExecuteCommand(String(children).replace(/\n$/, ''))}
-                                  className="bg-indigo-600 hover:bg-indigo-500 text-white p-1.5 rounded-md text-xs flex items-center gap-1"
+                                  className="bg-indigo-600 hover:bg-indigo-500 text-white p-1.5 rounded-md text-[10px] flex items-center gap-1"
                                 >
                                   <Play className="w-3 h-3" />
                                   {t('chat.run')}
@@ -233,12 +233,12 @@ ${terminalContext || "No terminal context available yet."}
                               )}
                               <button
                                 onClick={() => copyCommand(String(children).replace(/\n$/, ''))}
-                                className="bg-zinc-800 hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 p-1.5 rounded-md text-xs flex items-center gap-1"
+                                className="bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 p-1.5 rounded-md text-[10px] flex items-center gap-1"
                               >
                                 {copiedText === String(children).replace(/\n$/, '') ? (
                                   <>
-                                    <Check className="w-3 h-3 text-emerald-400" />
-                                    <span className="text-emerald-400">{t('Copied')}</span>
+                                    <Check className="w-3 h-3 text-emerald-500 dark:text-emerald-400" />
+                                    <span className="text-emerald-500 dark:text-emerald-400">{t('Copied') as string || 'Copied'}</span>
                                   </>
                                 ) : (
                                   <>
@@ -248,14 +248,14 @@ ${terminalContext || "No terminal context available yet."}
                                 )}
                               </button>
                             </div>
-                            <pre className={className} {...props}>
+                            <pre className="bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md p-3 overflow-x-auto text-xs whitespace-pre font-mono text-indigo-600 dark:text-indigo-400">
                               <code className={className} {...props}>
                                 {children}
                               </code>
                             </pre>
                           </div>
                         ) : (
-                          <code className={className} {...props}>
+                          <code className="bg-zinc-100 dark:bg-zinc-800/50 text-indigo-600 dark:text-indigo-400 px-1 py-0.5 rounded text-xs font-mono" {...props}>
                             {children}
                           </code>
                         )
