@@ -193,11 +193,15 @@ You must output your response in valid JSON format only, structured exactly like
 \`\`\`json
 {
   "plan": "Explanation of the logic and flow of what you are going to do",
-  "requiresInteraction": false, // Set to true ONLY if the commands require answering prompts interactively (like passwords, custom inputs, etc). If they can run unattended (e.g. by using '&&' and '-y' or '--force' flags), set to false to save tokens.
-  "commands": ["command 1", "command 2", "command 3"]
+  "requiresInteraction": false,
+  "commands": [
+    "apt update -y && apt install nginx -y && systemctl enable nginx --now"
+  ]
 }
 \`\`\`
-If 'requiresInteraction' is false, make sure your commands are strictly non-interactive (use -y, --force, etc. where applicable) because they will be executed as a single chain.
+*CRITICAL*: If the commands can run unattended (without interactive password/y/N prompts), you MUST prioritize chaining them together using \`&&\` into a SINGLE line inside the \`commands\` array, OR write an unattended bash script (e.g. \`cat << 'EOF' > script.sh ... && bash script.sh\`).
+Set "requiresInteraction" to false to completely bypass the interactive Agent reading terminal output. THIS IS HIGHLY PREFERRED.
+ONLY set "requiresInteraction" to true if the commands absolutely require the AI to read the terminal at runtime to input a password or answer interactive prompts.
 Do not include any text outside the JSON block.
 Current Terminal Context (last output lines):
 \`\`\`\n${terminalContext || "No terminal context available yet."}\n\`\`\``
