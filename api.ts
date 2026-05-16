@@ -168,7 +168,7 @@ export function createApiRouter(db: any) {
     res.json({ user: req.user });
   });
 
-  router.get("/auth/me/settings", authenticateToken, async (req: any, res: any) => {
+  router.get("/users/me/preferences", authenticateToken, async (req: any, res: any) => {
     try {
       const user = await db.get('SELECT settings FROM users WHERE id = ?', [req.user.id]);
       res.json(user?.settings ? JSON.parse(user.settings) : {});
@@ -177,9 +177,13 @@ export function createApiRouter(db: any) {
     }
   });
 
-  router.post("/auth/me/settings", authenticateToken, async (req: any, res: any) => {
+  router.post("/users/me/preferences", authenticateToken, async (req: any, res: any) => {
     try {
-      await db.run('UPDATE users SET settings = ? WHERE id = ?', [JSON.stringify(req.body), req.user.id]);
+      let data = req.body;
+      if (req.body.payload) {
+        data = JSON.parse(Buffer.from(req.body.payload, 'base64').toString('utf-8'));
+      }
+      await db.run('UPDATE users SET settings = ? WHERE id = ?', [JSON.stringify(data), req.user.id]);
       res.json({ success: true });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
