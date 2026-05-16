@@ -30,6 +30,7 @@ export interface Session {
   notes: string;
   expirationDate?: string;
   renewalCycle?: string;
+  uptimeMonitorEnabled?: boolean;
 }
 
 const getExpirationInfo = (expirationDate?: string, cycleInMonths?: string) => {

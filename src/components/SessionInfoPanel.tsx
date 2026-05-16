@@ -246,8 +246,8 @@ export default function SessionInfoPanel({ session, refreshInterval = 10000 }: P
       if (res.ok) {
         loadFiles(targetPath);
       } else {
-        const errorData = await res.json();
-        setFileError(errorData.error || 'Delete failed');
+        const errorData = await res.json().catch(() => ({}));
+        setFileError(errorData.error || `Delete failed (${res.status})`);
         setTimeout(() => setFileError(''), 3000);
         setIsLoadingFiles(false);
       }

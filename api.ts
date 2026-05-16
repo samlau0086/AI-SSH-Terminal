@@ -72,6 +72,18 @@ export async function initDb() {
     await db.exec('ALTER TABLE sessions ADD COLUMN renewalCycle TEXT;');
   }
 
+  try {
+    await db.get('SELECT uptimeMonitorEnabled FROM sessions LIMIT 1');
+  } catch(e) {
+    await db.exec('ALTER TABLE sessions ADD COLUMN uptimeMonitorEnabled INTEGER DEFAULT 0;');
+  }
+
+  try {
+    await db.get('SELECT settings FROM users LIMIT 1');
+  } catch(e) {
+    await db.exec('ALTER TABLE users ADD COLUMN settings TEXT;');
+  }
+
   return db;
 }
 
@@ -156,6 +168,24 @@ export function createApiRouter(db: any) {
     res.json({ user: req.user });
   });
 
+  router.get("/auth/me/settings", authenticateToken, async (req: any, res: any) => {
+    try {
+      const user = await db.get('SELECT settings FROM users WHERE id = ?', [req.user.id]);
+      res.json(user?.settings ? JSON.parse(user.settings) : {});
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  router.post("/auth/me/settings", authenticateToken, async (req: any, res: any) => {
+    try {
+      await db.run('UPDATE users SET settings = ? WHERE id = ?', [JSON.stringify(req.body), req.user.id]);
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   router.get("/sessions", authenticateToken, async (req: any, res: any) => {
     try {
       const sessions = await db.all('SELECT * FROM sessions WHERE userId = ?', [req.user.id]);
@@ -188,12 +218,12 @@ export function createApiRouter(db: any) {
 
   router.post("/sessions", authenticateToken, async (req: any, res: any) => {
     try {
-      const { id, name, host, port, username, authType, password, privateKey, passphrase, tags, notes, expirationDate, renewalCycle } = req.body;
+      const { id, name, host, port, username, authType, password, privateKey, passphrase, tags, notes, expirationDate, renewalCycle, uptimeMonitorEnabled } = req.body;
       const formattedPrivateKey = normalizePrivateKey(privateKey);
       await db.run(
-        `INSERT INTO sessions (id, userId, name, host, port, username, authType, password, privateKey, passphrase, tags, notes, expirationDate, renewalCycle) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, req.user.id, name, host, port, username, authType, password, formattedPrivateKey, passphrase, JSON.stringify(tags || []), notes, expirationDate, renewalCycle]
+        `INSERT INTO sessions (id, userId, name, host, port, username, authType, password, privateKey, passphrase, tags, notes, expirationDate, renewalCycle, uptimeMonitorEnabled) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, req.user.id, name, host, port, username, authType, password, formattedPrivateKey, passphrase, JSON.stringify(tags || []), notes, expirationDate, renewalCycle, uptimeMonitorEnabled ? 1 : 0]
       );
       res.json({ success: true });
     } catch (err: any) {
@@ -265,12 +295,12 @@ export function createApiRouter(db: any) {
 
   router.put("/sessions/:id", authenticateToken, async (req: any, res: any) => {
     try {
-        const { name, host, port, username, authType, password, privateKey, passphrase, tags, notes, expirationDate, renewalCycle } = req.body;
+        const { name, host, port, username, authType, password, privateKey, passphrase, tags, notes, expirationDate, renewalCycle, uptimeMonitorEnabled } = req.body;
         const formattedPrivateKey = normalizePrivateKey(privateKey);
         await db.run(
-          `UPDATE sessions SET name=?, host=?, port=?, username=?, authType=?, password=?, privateKey=?, passphrase=?, tags=?, notes=?, expirationDate=?, renewalCycle=? 
+          `UPDATE sessions SET name=?, host=?, port=?, username=?, authType=?, password=?, privateKey=?, passphrase=?, tags=?, notes=?, expirationDate=?, renewalCycle=?, uptimeMonitorEnabled=?
            WHERE id=? AND userId=?`,
-          [name, host, port, username, authType, password, formattedPrivateKey, passphrase, JSON.stringify(tags || []), notes, expirationDate, renewalCycle, req.params.id, req.user.id]
+          [name, host, port, username, authType, password, formattedPrivateKey, passphrase, JSON.stringify(tags || []), notes, expirationDate, renewalCycle, uptimeMonitorEnabled ? 1 : 0, req.params.id, req.user.id]
         );
         res.json({ success: true });
     } catch (err: any) {

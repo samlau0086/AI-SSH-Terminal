@@ -28,7 +28,12 @@ export default function AuthPage() {
         body: JSON.stringify({ username, password })
       });
       
-      const data = await res.json();
+      let data;
+      try {
+        data = await res.json();
+      } catch (e) {
+        throw new Error(await res.text());
+      }
       
       if (!res.ok) {
         throw new Error(data.error || t('auth.error'));

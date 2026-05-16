@@ -1,4 +1,4 @@
-import { useState } from 'react';
+  import { useState, useEffect } from 'react';
 import { X, Server, Activity, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { GoogleGenAI } from "@google/genai";
@@ -26,9 +26,64 @@ export default function SettingsModal({ settings, onSave, onClose }: Props) {
   const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const [testMessage, setTestMessage] = useState('');
 
+  const [notificationSettings, setNotificationSettings] = useState({
+    ntfyEnabled: false,
+    ntfyUrl: '',
+    barkEnabled: false,
+    barkUrl: '',
+    uptimeCheckInterval: 5
+  });
+
+  useEffect(() => {
+    fetch('/api/auth/me/settings', {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    })
+    .then(async r => {
+      if (!r.ok) throw new Error(await r.text());
+      return r.json();
+    })
+    .then(data => {
+      if (data) {
+        let ntfyEnabled = data.ntfyEnabled ?? (data.notificationChannel === 'ntfy');
+        let ntfyUrl = data.ntfyUrl || (data.notificationChannel === 'ntfy' ? data.notificationUrl : '');
+        let barkEnabled = data.barkEnabled ?? (data.notificationChannel === 'bark');
+        let barkUrl = data.barkUrl || (data.notificationChannel === 'bark' ? data.notificationUrl : '');
+
+        setNotificationSettings(prev => ({ 
+          ...prev, 
+          ...data,
+          ntfyEnabled,
+          ntfyUrl,
+          barkEnabled,
+          barkUrl
+        }));
+      }
+    })
+    .catch(console.error);
+  }, []);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave(formData);
+    fetch('/api/auth/me/settings', {
+      method: 'POST',
+      headers: { 
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        ntfyEnabled: notificationSettings.ntfyEnabled,
+        ntfyUrl: notificationSettings.ntfyUrl,
+        barkEnabled: notificationSettings.barkEnabled,
+        barkUrl: notificationSettings.barkUrl,
+        uptimeCheckInterval: notificationSettings.uptimeCheckInterval
+      })
+    })
+    .then(async r => {
+      if (!r.ok) throw new Error(await r.text());
+      return r.json();
+    })
+    .catch(console.error);
   };
 
   const handleTestModel = async () => {
@@ -192,6 +247,68 @@ export default function SettingsModal({ settings, onSave, onClose }: Props) {
                 onChange={e => setFormData({...formData, statsRefreshInterval: parseInt(e.target.value) || 10000})}
                 className="w-full bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 text-zinc-800 dark:text-zinc-200"
               />
+            </div>
+
+            <div className="pt-4 border-t border-zinc-200 dark:border-zinc-800">
+              <h3 className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-3">Uptime Monitor Notifications</h3>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5">Check Interval (Minutes)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="1440"
+                    value={notificationSettings.uptimeCheckInterval || 5}
+                    onChange={e => setNotificationSettings({...notificationSettings, uptimeCheckInterval: Math.max(1, parseInt(e.target.value) || 5)})}
+                    className="w-full bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 text-zinc-800 dark:text-zinc-200"
+                  />
+                </div>
+
+                <div className="space-y-4 pt-2">
+                  <div>
+                    <label className="flex items-center gap-2 mb-2">
+                      <input 
+                        type="checkbox" 
+                        className="w-4 h-4 text-indigo-600 rounded border-zinc-300 dark:border-zinc-700 bg-transparent focus:ring-0 focus:ring-offset-0"
+                        checked={notificationSettings.ntfyEnabled}
+                        onChange={e => setNotificationSettings({...notificationSettings, ntfyEnabled: e.target.checked})}
+                      />
+                      <span className="text-sm text-zinc-700 dark:text-zinc-300 font-medium">ntfy.sh</span>
+                    </label>
+                    {notificationSettings.ntfyEnabled && (
+                      <input 
+                        type="text" 
+                        value={notificationSettings.ntfyUrl}
+                        onChange={e => setNotificationSettings({...notificationSettings, ntfyUrl: e.target.value})}
+                        className="w-full bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 text-zinc-800 dark:text-zinc-200"
+                        placeholder="https://ntfy.sh/mytopic"
+                      />
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="flex items-center gap-2 mb-2">
+                      <input 
+                        type="checkbox" 
+                        className="w-4 h-4 text-indigo-600 rounded border-zinc-300 dark:border-zinc-700 bg-transparent focus:ring-0 focus:ring-offset-0"
+                        checked={notificationSettings.barkEnabled}
+                        onChange={e => setNotificationSettings({...notificationSettings, barkEnabled: e.target.checked})}
+                      />
+                      <span className="text-sm text-zinc-700 dark:text-zinc-300 font-medium">Bark</span>
+                    </label>
+                    {notificationSettings.barkEnabled && (
+                      <input 
+                        type="text" 
+                        value={notificationSettings.barkUrl}
+                        onChange={e => setNotificationSettings({...notificationSettings, barkUrl: e.target.value})}
+                        className="w-full bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 text-zinc-800 dark:text-zinc-200"
+                        placeholder="https://api.day.app/yourkey/"
+                      />
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
             
             {testStatus !== 'idle' && (

@@ -285,6 +285,20 @@ export default function SessionForm({ session, onSave, onClose, availableTags = 
               </div>
             </div>
 
+            <div className="flex items-center gap-2 mt-4 p-3 bg-zinc-50 dark:bg-zinc-900/50 rounded-lg border border-zinc-200 dark:border-zinc-800">
+              <input
+                type="checkbox"
+                id="uptimeMonitor"
+                checked={formData.uptimeMonitorEnabled || false}
+                onChange={(e) => setFormData({...formData, uptimeMonitorEnabled: e.target.checked})}
+                className="w-4 h-4 text-indigo-600 rounded border-zinc-300 focus:ring-indigo-500"
+              />
+              <label htmlFor="uptimeMonitor" className="text-sm font-medium text-zinc-700 dark:text-zinc-300 select-none cursor-pointer">
+                Enable Uptime Monitor
+              </label>
+              <div className="text-[10px] text-zinc-500 ml-auto">Pings host periodically & notifies on drop</div>
+            </div>
+
           </div>
 
           <div className="pt-4 flex items-center justify-end gap-3 border-t border-zinc-200 dark:border-zinc-800">
