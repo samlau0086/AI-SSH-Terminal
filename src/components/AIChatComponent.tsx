@@ -17,6 +17,11 @@ interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
+  isAgentPlan?: boolean;
+  parsedPlan?: {
+    plan: string;
+    commands: string[];
+  };
 }
 
 // Global default AI
@@ -34,6 +39,8 @@ export default function AIChatComponent({ terminalContext, onExecuteCommand, aiS
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [copiedText, setCopiedText] = useState<string | null>(null);
+  const [isAgentMode, setIsAgentMode] = useState(false);
+  const [isAutoExecute, setIsAutoExecute] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -53,7 +60,21 @@ export default function AIChatComponent({ terminalContext, onExecuteCommand, aiS
     setIsTyping(true);
 
     try {
-      const systemPrompt = `You are an expert DevOps and Systems Administrator AI assistant. You have context of the user's current SSH terminal session.
+      const systemPrompt = isAgentMode 
+        ? `You are an expert DevOps and Systems Administrator AI agent. You have context of the user's current SSH terminal session.
+The user will ask you to perform a task.
+You will plan the exact commands needed to achieve the task.
+You must output your response in valid JSON format only, structured exactly like this:
+\`\`\`json
+{
+  "plan": "Explanation of the logic and flow of what you are going to do",
+  "commands": ["command 1", "command 2", "command 3"]
+}
+\`\`\`
+Do not include any text outside the JSON block.
+Current Terminal Context (last output lines):
+\`\`\`\n${terminalContext || "No terminal context available yet."}\n\`\`\``
+        : `You are an expert DevOps and Systems Administrator AI assistant. You have context of the user's current SSH terminal session.
 If the user asks for a command, provide it clearly.
 Format your responses using Markdown. Use \`code\` blocks for commands.
 Current Terminal Context (last output lines):
@@ -132,14 +153,38 @@ ${terminalContext || "No terminal context available yet."}
         aiResponseText = response.text || "Sorry, I couldn't generate a response.";
       }
 
+      let isAgentPlan = false;
+      let parsedPlan = undefined;
+      
+      if (isAgentMode) {
+        try {
+          const jsonStr = aiResponseText.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
+          parsedPlan = JSON.parse(jsonStr);
+          if (parsedPlan && parsedPlan.plan && Array.isArray(parsedPlan.commands)) {
+            isAgentPlan = true;
+          }
+        } catch (e) {
+          console.warn("Failed to parse agent JSON:", e);
+        }
+      }
+
       setMessages([
         ...newMessages, 
         { 
           id: Date.now().toString(), 
           role: 'assistant', 
-          content: aiResponseText
+          content: aiResponseText,
+          isAgentPlan,
+          parsedPlan
         }
       ]);
+
+      if (isAgentPlan && isAutoExecute && onExecuteCommand) {
+        const fullCmd = parsedPlan.commands.join('\n');
+        setTimeout(() => {
+          onExecuteCommand(fullCmd);
+        }, 500);
+      }
     } catch (error: any) {
       console.error(error);
       setMessages([
@@ -187,11 +232,35 @@ ${terminalContext || "No terminal context available yet."}
 
   return (
     <div className="flex flex-col h-full bg-transparent">
-      <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between shrink-0">
-        <h2 className="text-xs font-bold uppercase tracking-widest text-indigo-400 flex items-center gap-2">
-          <Bot className="w-4 h-4" />
-          {t('chat.aiAssistant')}
-        </h2>
+      <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 shrink-0">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-xs font-bold uppercase tracking-widest text-indigo-400 flex items-center gap-2">
+            <Bot className="w-4 h-4" />
+            {t('chat.aiAssistant')}
+          </h2>
+        </div>
+        <div className="flex items-center gap-4">
+          <label className="flex items-center gap-2 text-zinc-600 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200 cursor-pointer text-xs font-medium">
+            <input 
+              type="checkbox" 
+              className="rounded bg-zinc-800 border-zinc-700 text-indigo-500 focus:ring-offset-0 focus:ring-indigo-500" 
+              checked={isAgentMode} 
+              onChange={e => setIsAgentMode(e.target.checked)} 
+            />
+            <span>Agent Mode</span>
+          </label>
+          {isAgentMode && (
+            <label className="flex items-center gap-2 text-zinc-600 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200 cursor-pointer text-xs font-medium transition-opacity animate-in fade-in">
+              <input 
+                type="checkbox" 
+                className="rounded bg-zinc-800 border-zinc-700 text-emerald-500 focus:ring-offset-0 focus:ring-emerald-500" 
+                checked={isAutoExecute} 
+                onChange={e => setIsAutoExecute(e.target.checked)} 
+              />
+              <span>Auto-Execute</span>
+            </label>
+          )}
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -207,10 +276,39 @@ ${terminalContext || "No terminal context available yet."}
               "max-w-[85%] rounded-lg p-3 text-sm",
               msg.role === 'user' 
                 ? "bg-zinc-800 text-zinc-100" 
-                : "border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300"
+                : "border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 w-full"
             )}>
               {msg.role === 'user' ? (
                 <div className="whitespace-pre-wrap">{msg.content}</div>
+              ) : msg.isAgentPlan && msg.parsedPlan ? (
+                <div className="space-y-3 w-full">
+                  <div className="text-zinc-600 dark:text-zinc-400 font-medium text-[10px] uppercase tracking-widest flex items-center gap-2">
+                    <Rocket className="w-3 h-3 text-indigo-500" />
+                    Agent Execution Plan
+                  </div>
+                  <div className="text-sm border-l-2 border-indigo-500/50 pl-3 py-1 text-zinc-700 dark:text-zinc-300 bg-indigo-500/5 rounded-r-md">
+                    <Markdown className="prose prose-sm prose-invert prose-p:leading-relaxed max-w-none">{msg.parsedPlan.plan}</Markdown>
+                  </div>
+                  
+                  <div className="bg-zinc-100 dark:bg-black/50 border border-zinc-200 dark:border-zinc-800 rounded-md p-3 overflow-hidden">
+                    {msg.parsedPlan.commands.map((cmd, idx) => (
+                      <div key={idx} className="font-mono text-xs text-indigo-600 dark:text-indigo-400 py-1 break-all flex gap-3">
+                        <span className="text-zinc-400 select-none">$</span>
+                        <span>{cmd}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex gap-2 justify-end mt-2">
+                    <button
+                      onClick={() => onExecuteCommand && onExecuteCommand(msg.parsedPlan!.commands.join('\n'))}
+                      className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-md text-xs font-bold flex items-center gap-2 transition-colors border border-transparent"
+                    >
+                      <Play className="w-3 h-3" />
+                      Approve & Execute
+                    </button>
+                  </div>
+                </div>
               ) : (
                 <div className="prose prose-invert prose-sm max-w-none 
                   prose-p:leading-relaxed prose-pre:bg-zinc-100 prose-pre:dark:bg-black/50 prose-pre:border prose-pre:border-zinc-200 prose-pre:dark:border-zinc-800

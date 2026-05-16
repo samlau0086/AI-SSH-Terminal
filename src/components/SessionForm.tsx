@@ -18,8 +18,9 @@ export default function SessionForm({ session, onSave, onClose, availableTags = 
   const suggestionRef = useRef<HTMLDivElement>(null);
   const [formData, setFormData] = useState<Partial<Session>>({
     id: uuidv4(),
+    username: 'root',
     ...session,
-    tags: session.tags || []
+    tags: session?.tags || []
   });
   const [tagInput, setTagInput] = useState('');
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
