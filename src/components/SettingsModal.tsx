@@ -74,7 +74,10 @@ export default function SettingsModal({ settings, onSave, onClose }: Props) {
       setTestMessage('Connection successful!');
     } catch (error: any) {
       setTestStatus('error');
-      setTestMessage(error.message || 'Connection failed.');
+      const errMsg = error.message === "Failed to fetch" 
+        ? "Network error (Check Base URL/CORS if using Custom API, or connection)" 
+        : error.message || 'Connection failed.';
+      setTestMessage(errMsg);
     }
   };
 

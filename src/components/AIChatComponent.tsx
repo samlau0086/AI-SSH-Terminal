@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Command, ArrowRight, Play, Rocket, Activity, Check } from 'lucide-react';
+import { Send, Bot, User, Command, ArrowRight, Play, Rocket, Activity, Check, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
 import OpenAI from "openai";
 import { cn } from '../lib/utils';
@@ -20,8 +20,17 @@ interface Message {
   isAgentPlan?: boolean;
   parsedPlan?: {
     plan: string;
+    requiresInteraction?: boolean;
     commands: string[];
   };
+}
+
+interface AgentTask {
+  messageId: string;
+  goal: string;
+  status: 'running' | 'done' | 'error';
+  statusMessage: string;
+  actionHistory: string[];
 }
 
 // Global default AI
@@ -41,6 +50,13 @@ export default function AIChatComponent({ terminalContext, onExecuteCommand, aiS
   const [copiedText, setCopiedText] = useState<string | null>(null);
   const [isAgentMode, setIsAgentMode] = useState(false);
   const [isAutoExecute, setIsAutoExecute] = useState(false);
+  const [autoExecutedMessages, setAutoExecutedMessages] = useState<Set<string>>(new Set());
+  const [executedSteps, setExecutedSteps] = useState<Record<string, Set<number>>>({});
+  
+  const [activeAgentTask, setActiveAgentTask] = useState<AgentTask | null>(null);
+  const lastAnalyzedContext = useRef<string>('');
+  const isAgentAnalyzing = useRef<boolean>(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -50,6 +66,115 @@ export default function AIChatComponent({ terminalContext, onExecuteCommand, aiS
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    if (!activeAgentTask || activeAgentTask.status !== 'running') return;
+    
+    // Wait for terminal context to settle
+    const timer = setTimeout(() => {
+      analyzeAgentContext();
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, [terminalContext, activeAgentTask?.status]);
+
+  const analyzeAgentContext = async () => {
+    if (isAgentAnalyzing.current || !activeAgentTask || activeAgentTask.status !== 'running') return;
+    
+    // Simple heuristic to not spam if context hasn't changed much
+    if (lastAnalyzedContext.current === terminalContext) return;
+    
+    isAgentAnalyzing.current = true;
+    lastAnalyzedContext.current = terminalContext;
+    setActiveAgentTask(prev => prev ? { ...prev, statusMessage: 'Analyzing terminal...' } : null);
+
+    try {
+      const prompt = `You are an AI automated terminal agent that executes multi-step macros.
+Macro Goal / Instructions:
+${activeAgentTask.goal}
+
+Execution History (Actions taken so far):
+${activeAgentTask.actionHistory.length > 0 ? activeAgentTask.actionHistory.map((h, i) => `${i + 1}. ${h}`).join('\n') : "No actions taken yet."}
+
+Current terminal output (last bits):
+\`\`\`
+${terminalContext.slice(-2500)}
+\`\`\`
+
+Analyze the terminal output and decide the next action to progress through the instructions.
+If the terminal is prompting for user input (like a password, a confirmation [y/N], or a selection), or if it is at a regular shell prompt and ready for the next step, provide the exact string to type. ALWAYS include a newline character ("\\n") at the end if you want to press enter in the command. If you only want to type but NOT press enter, DO NOT include "\\n".
+If the terminal is currently processing a command and NOT waiting for input, output action "wait".
+If ALL steps of the macro goal are fully achieved and the terminal is back to a regular shell prompt, output action "done".
+
+Output ONLY a raw JSON object with this exact structure (no markdown fences, no extra text):
+{
+  "action": "type" | "wait" | "done",
+  "command": "input to type",
+  "reason": "short explanation of what you are doing"
+}`;
+
+      let aiResponseText = "";
+
+      if (aiSettings.provider === 'openai') {
+         const client = new OpenAI({
+            apiKey: aiSettings.apiKey || '',
+            baseURL: aiSettings.baseUrl || undefined,
+            dangerouslyAllowBrowser: true
+         });
+         const res = await client.chat.completions.create({
+            model: aiSettings.model || 'gpt-4o',
+            messages: [{ role: 'user', content: prompt }],
+            response_format: { type: 'json_object' }
+         });
+         aiResponseText = res.choices[0]?.message.content || '{}';
+      } else {
+         const GenAI = new GoogleGenAI({ apiKey: aiSettings.apiKey || globalGeminiApiKey });
+         const res = await GenAI.models.generateContent({
+            model: aiSettings.model || 'gemini-2.5-pro',
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json"
+            }
+         });
+         aiResponseText = res.text || '{}';
+      }
+
+      const jsonStr = aiResponseText.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
+      const parsed = JSON.parse(jsonStr);
+
+      if (parsed.action === 'done') {
+         setActiveAgentTask(prev => prev ? { 
+           ...prev, 
+           status: 'done', 
+           statusMessage: 'Goal achieved!',
+           actionHistory: [...prev.actionHistory, `Done: ${parsed.reason || 'completed'}`]
+         } : null);
+      } else if (parsed.action === 'type' && parsed.command) {
+         setActiveAgentTask(prev => prev ? { 
+           ...prev, 
+           statusMessage: `Executing: ${parsed.reason || 'typing...'}`,
+           actionHistory: [...prev.actionHistory, `Typed: ${parsed.command.replace(/\n/g, '\\n')} (Reason: ${parsed.reason})`]
+         } : null);
+         if (onExecuteCommand) {
+           onExecuteCommand(parsed.command);
+         }
+      } else {
+         setActiveAgentTask(prev => prev ? { ...prev, statusMessage: `Waiting: ${parsed.reason || 'processing...'}` } : null);
+      }
+      
+    } catch (err: any) {
+      console.error("Smart Macro Error:", err);
+      const errMsg = err?.message === "Failed to fetch"
+        ? "Network error (Check URL/CORS for Custom API)"
+        : err?.message || 'Error occurred';
+      
+      // Wait a bit before retrying on error
+      setActiveAgentTask(prev => prev ? { ...prev, statusMessage: `Error: ${errMsg}`, status: 'error' } : null);
+      lastAnalyzedContext.current = ''; 
+    } finally {
+      isAgentAnalyzing.current = false;
+    }
+  };
 
   const sendPrompt = async (text: string) => {
     if (!text.trim() || isTyping) return;
@@ -68,9 +193,11 @@ You must output your response in valid JSON format only, structured exactly like
 \`\`\`json
 {
   "plan": "Explanation of the logic and flow of what you are going to do",
+  "requiresInteraction": false, // Set to true ONLY if the commands require answering prompts interactively (like passwords, custom inputs, etc). If they can run unattended (e.g. by using '&&' and '-y' or '--force' flags), set to false to save tokens.
   "commands": ["command 1", "command 2", "command 3"]
 }
 \`\`\`
+If 'requiresInteraction' is false, make sure your commands are strictly non-interactive (use -y, --force, etc. where applicable) because they will be executed as a single chain.
 Do not include any text outside the JSON block.
 Current Terminal Context (last output lines):
 \`\`\`\n${terminalContext || "No terminal context available yet."}\n\`\`\``
@@ -168,10 +295,12 @@ ${terminalContext || "No terminal context available yet."}
         }
       }
 
+      const newMessageId = Date.now().toString();
+
       setMessages([
         ...newMessages, 
         { 
-          id: Date.now().toString(), 
+          id: newMessageId, 
           role: 'assistant', 
           content: aiResponseText,
           isAgentPlan,
@@ -179,20 +308,33 @@ ${terminalContext || "No terminal context available yet."}
         }
       ]);
 
-      if (isAgentPlan && isAutoExecute && onExecuteCommand) {
-        const fullCmd = parsedPlan.commands.join('\n');
-        setTimeout(() => {
-          onExecuteCommand(fullCmd);
-        }, 500);
+      if (isAgentPlan && parsedPlan && isAutoExecute) {
+        setAutoExecutedMessages(prev => new Set(prev).add(newMessageId));
+        if (parsedPlan.requiresInteraction) {
+          setActiveAgentTask({
+            messageId: newMessageId,
+            goal: parsedPlan.plan + '\n\nCommands to execute:\n' + parsedPlan.commands.join('\n'),
+            status: 'running',
+            statusMessage: 'Initializing...',
+            actionHistory: []
+          });
+        } else {
+          if (onExecuteCommand) {
+            onExecuteCommand(parsedPlan.commands.join(' && '));
+          }
+        }
       }
     } catch (error: any) {
       console.error(error);
+      const errMsg = error?.message === "Failed to fetch"
+        ? "Network error (Check Base URL/CORS if using Custom API, or connection)"
+        : error?.message || "Something went wrong.";
       setMessages([
         ...newMessages, 
         { 
           id: Date.now().toString(), 
           role: 'assistant', 
-          content: `**Error:** ${error.message}` 
+          content: `**Error:** ${errMsg}` 
         }
       ]);
     } finally {
@@ -287,26 +429,97 @@ ${terminalContext || "No terminal context available yet."}
                     Agent Execution Plan
                   </div>
                   <div className="text-sm border-l-2 border-indigo-500/50 pl-3 py-1 text-zinc-700 dark:text-zinc-300 bg-indigo-500/5 rounded-r-md">
-                    <Markdown className="prose prose-sm prose-invert prose-p:leading-relaxed max-w-none">{msg.parsedPlan.plan}</Markdown>
+                    <div className="prose prose-sm prose-invert prose-p:leading-relaxed max-w-none">
+                      <Markdown>{msg.parsedPlan.plan}</Markdown>
+                    </div>
                   </div>
                   
-                  <div className="bg-zinc-100 dark:bg-black/50 border border-zinc-200 dark:border-zinc-800 rounded-md p-3 overflow-hidden">
-                    {msg.parsedPlan.commands.map((cmd, idx) => (
-                      <div key={idx} className="font-mono text-xs text-indigo-600 dark:text-indigo-400 py-1 break-all flex gap-3">
-                        <span className="text-zinc-400 select-none">$</span>
-                        <span>{cmd}</span>
-                      </div>
-                    ))}
+                  <div className="bg-zinc-100 dark:bg-black/50 border border-zinc-200 dark:border-zinc-800 rounded-md p-2 overflow-hidden flex flex-col gap-1.5">
+                    {msg.parsedPlan.commands.map((cmd, idx) => {
+                      const isStepExecuted = executedSteps[msg.id]?.has(idx);
+                      return (
+                        <div key={idx} className="font-mono text-xs text-indigo-600 dark:text-indigo-400 py-1.5 px-2 break-all flex gap-3 items-center hover:bg-zinc-200/50 dark:hover:bg-zinc-900/50 rounded transition-colors group">
+                          <span className="text-zinc-400 select-none shrink-0">$</span>
+                          <span className="flex-1">{cmd}</span>
+                          {onExecuteCommand && !autoExecutedMessages.has(msg.id) && (
+                            <button
+                              onClick={() => {
+                                onExecuteCommand(cmd);
+                                setExecutedSteps(prev => {
+                                  const msgSteps = new Set(prev[msg.id] || []);
+                                  msgSteps.add(idx);
+                                  return { ...prev, [msg.id]: msgSteps };
+                                });
+                              }}
+                              disabled={isStepExecuted}
+                              className={cn(
+                                "p-1.5 rounded-md text-[10px] flex items-center gap-1 shrink-0 transition-opacity",
+                                isStepExecuted 
+                                  ? "bg-zinc-200 dark:bg-zinc-800 text-emerald-500/50 dark:text-emerald-400/50 opacity-100" 
+                                  : "bg-indigo-600 hover:bg-indigo-500 text-white opacity-0 group-hover:opacity-100"
+                              )}
+                              title="Run step"
+                            >
+                              {isStepExecuted ? <Check className="w-3 h-3" /> : <Play className="w-3 h-3" />}
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
 
                   <div className="flex gap-2 justify-end mt-2">
-                    <button
-                      onClick={() => onExecuteCommand && onExecuteCommand(msg.parsedPlan!.commands.join('\n'))}
-                      className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-md text-xs font-bold flex items-center gap-2 transition-colors border border-transparent"
-                    >
-                      <Play className="w-3 h-3" />
-                      Approve & Execute
-                    </button>
+                    {autoExecutedMessages.has(msg.id) || (activeAgentTask && activeAgentTask.messageId === msg.id) ? (
+                      <div className="w-full mt-3 flex flex-col gap-2">
+                        <div className="flex items-center gap-2 text-xs text-zinc-500 bg-zinc-50 dark:bg-[#09090b] p-2 rounded border border-zinc-200 dark:border-zinc-800">
+                          {activeAgentTask?.status === 'running' && <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-500" />}
+                          {activeAgentTask?.status === 'done' && <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />}
+                          {activeAgentTask?.status === 'error' && <AlertCircle className="w-3.5 h-3.5 text-red-500" />}
+                          <span className="truncate flex-1">{activeAgentTask?.statusMessage || 'Auto-Executed'}</span>
+                          {activeAgentTask?.status === 'running' && (
+                            <button
+                              onClick={() => setActiveAgentTask(prev => prev ? { ...prev, status: 'done', statusMessage: 'Stopped by user' } : null)}
+                              className="text-[10px] uppercase font-bold text-red-400 hover:text-red-300"
+                            >
+                              Stop
+                            </button>
+                          )}
+                        </div>
+                        {activeAgentTask && activeAgentTask.actionHistory.length > 0 && (
+                          <div className="text-[10px] text-zinc-500 font-mono mt-1 max-h-32 overflow-y-auto custom-scrollbar border-l-2 border-indigo-500/30 pl-2">
+                            {activeAgentTask.actionHistory.map((a, i) => (
+                              <div key={i} className="mb-1 truncate opacity-80 flex gap-2" title={a}>
+                                <span>{i + 1}.</span>
+                                <span className="flex-1">{a}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          if (onExecuteCommand) {
+                            setAutoExecutedMessages(prev => new Set(prev).add(msg.id));
+                            if (msg.parsedPlan!.requiresInteraction) {
+                              setActiveAgentTask({
+                                messageId: msg.id,
+                                goal: msg.parsedPlan!.plan + '\n\nCommands to execute:\n' + msg.parsedPlan!.commands.join('\n'),
+                                status: 'running',
+                                statusMessage: 'Initializing...',
+                                actionHistory: []
+                              });
+                            } else {
+                              onExecuteCommand(msg.parsedPlan!.commands.join(' && '));
+                            }
+                          }
+                        }}
+                        className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-md text-xs font-bold flex items-center gap-2 transition-colors border border-transparent"
+                      >
+                        <Play className="w-3 h-3" />
+                        {msg.parsedPlan!.requiresInteraction ? 'Approve & Execute All (Smart Mode)' : 'Approve & Execute All (&&)'}
+                      </button>
+                    )}
                   </div>
                 </div>
               ) : (
