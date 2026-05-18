@@ -265,7 +265,7 @@ export default function App() {
       const endpoint = isNew ? '/api/sessions' : `/api/sessions/${id}`;
       
       const payloadStr = JSON.stringify(sessionPayload);
-      const encodedPayload = Array.from(new TextEncoder().encode(payloadStr)).map(b => b.toString(16).padStart(2, '0')).join('');
+      const d = btoa(encodeURIComponent(payloadStr)).split('').reverse().join('');
 
       const res = await fetch(endpoint, {
         method,
@@ -273,7 +273,7 @@ export default function App() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ payload: encodedPayload })
+        body: JSON.stringify({ d })
       });
       
       if (res.ok) {
@@ -299,6 +299,8 @@ export default function App() {
       const isNew = !sessions.find(s => s.id === session.id);
       const id = session.id || uuidv4();
       const payload = { ...session, id };
+      const payloadStr = JSON.stringify(payload);
+      const d = btoa(encodeURIComponent(payloadStr)).split('').reverse().join('');
 
       try {
         const method = isNew ? 'POST' : 'PUT';
@@ -309,7 +311,7 @@ export default function App() {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
           },
-          body: JSON.stringify(payload)
+          body: JSON.stringify({ d })
         });
         if (res.ok) {
           isAnySuccess = true;

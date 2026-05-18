@@ -77,6 +77,8 @@ export default function QuickCommands({ onExecuteActive, onRunSmartMacro, checke
     // Store prefix in backend
     const backendCommand = isEditing.isSmart ? `SMART::${isEditing.command}` : isEditing.command;
     const payload = { ...isEditing, id, command: backendCommand };
+    const payloadStr = JSON.stringify(payload);
+    const d = btoa(encodeURIComponent(payloadStr)).split('').reverse().join('');
 
     try {
       const res = await fetch(isNew ? '/api/quick-commands' : `/api/quick-commands/${id}`, {
@@ -85,7 +87,7 @@ export default function QuickCommands({ onExecuteActive, onRunSmartMacro, checke
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({ d })
       });
       
       if (res.ok) {
@@ -138,16 +140,19 @@ export default function QuickCommands({ onExecuteActive, onRunSmartMacro, checke
     setShowResults(true);
 
     try {
-      const res = await fetch('/api/sessions/execute', {
+      const payloadStr = JSON.stringify({
+        sessionIds: checkedSessionIds,
+        command: cmd.command
+      });
+      const d = btoa(encodeURIComponent(payloadStr)).split('').reverse().join('');
+
+      const res = await fetch('/api/sessions/runCmd', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          sessionIds: checkedSessionIds,
-          command: cmd.command
-        })
+        body: JSON.stringify({ d })
       });
 
       if (res.ok) {

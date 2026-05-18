@@ -16,7 +16,7 @@ export default function AdminModal({ onClose }: Props) {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const res = await fetch('/api/admin/users', {
+        const res = await fetch('/api/admin/accounts', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {
@@ -34,7 +34,7 @@ export default function AdminModal({ onClose }: Props) {
 
   const approveUser = async (id: number) => {
     try {
-      const res = await fetch(`/api/admin/users/${id}/approve`, {
+      const res = await fetch(`/api/admin/accounts/${id}/approve`, {
         method: 'PUT',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -51,7 +51,7 @@ export default function AdminModal({ onClose }: Props) {
     
     if (confirm(t('auth.confirmDeleteUser') || 'Are you sure you want to delete this user?')) {
       try {
-        const res = await fetch(`/api/admin/users/${id}`, {
+        const res = await fetch(`/api/admin/accounts/${id}`, {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${token}` }
         });

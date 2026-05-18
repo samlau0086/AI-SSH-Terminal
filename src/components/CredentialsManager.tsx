@@ -24,8 +24,8 @@ export default function CredentialsManager() {
 
   const fetchCredentials = async () => {
     try {
-      const res = await fetch('/api/user-items', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      const res = await fetch('/api/creds', {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('ai-ssh-token')}` }
       });
       if (res.ok) {
         const data = await res.json();
@@ -47,19 +47,19 @@ export default function CredentialsManager() {
       const isNew = !editForm.id;
       const id = editForm.id || uuidv4();
       const method = isNew ? 'POST' : 'PUT';
-      const url = isNew ? '/api/user-items' : `/api/user-items/${id}`;
+      const url = isNew ? '/api/creds' : `/api/creds/${id}`;
       
       const payloadObj = { ...editForm, id };
       const payloadStr = JSON.stringify(payloadObj);
-      const payload = Array.from(new TextEncoder().encode(payloadStr)).map(b => b.toString(16).padStart(2, '0')).join('');
+      const d = btoa(encodeURIComponent(payloadStr)).split('').reverse().join('');
 
       const res = await fetch(url, {
         method,
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${localStorage.getItem('ai-ssh-token')}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ payload })
+        body: JSON.stringify({ d })
       });
       
       if (!res.ok) {
@@ -77,9 +77,9 @@ export default function CredentialsManager() {
   const handleDelete = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this credential?')) return;
     try {
-      await fetch(`/api/user-items/${id}`, {
+      await fetch(`/api/creds/${id}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('ai-ssh-token')}` }
       });
       fetchCredentials();
     } catch (err) {

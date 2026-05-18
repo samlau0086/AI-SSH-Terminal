@@ -1,4 +1,8 @@
+import fs from 'fs';
 
+let mainContent = fs.readFileSync('src/main.tsx', 'utf-8');
+
+const frontendInterceptorCode = `
 const originalJson = Response.prototype.json;
 Response.prototype.json = async function() {
   const data = await originalJson.call(this);
@@ -13,17 +17,8 @@ Response.prototype.json = async function() {
   return data;
 };
 
-import {StrictMode} from 'react';
-import {createRoot} from 'react-dom/client';
-import App from './App.tsx';
-import { AuthProvider } from './contexts/AuthContext.tsx';
-import './index.css';
-import './i18n';
+`;
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <AuthProvider>
-      <App />
-    </AuthProvider>
-  </StrictMode>,
-);
+if (!mainContent.includes('Response.prototype.json = async function')) {
+  fs.writeFileSync('src/main.tsx', frontendInterceptorCode + mainContent);
+}

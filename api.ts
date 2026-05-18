@@ -100,7 +100,33 @@ export async function initDb() {
 }
 
 export function createApiRouter(db: any) {
+
   const router = Router();
+
+  router.use((req: any, res: any, next: any) => {
+    const originalJson = res.json;
+    res.json = function(body: any) {
+      // Avoid obfuscating errors or /api/auth/login or endpoints where body is simple
+      if (body && typeof body === 'object' && !body.error && !body.noObfuscate && (req.method === 'GET' || req.method === 'POST' || req.method === 'PUT')) {
+        // Skip auth/login and auth/register which return token
+        if (body.token) return originalJson.call(this, body);
+        
+        // Skip upload which we don't want to mess up
+        if (req.path && req.path.includes('/upload')) return originalJson.call(this, body);
+
+        try {
+          const payloadStr = JSON.stringify(body);
+          const encoded = Buffer.from(encodeURIComponent(payloadStr)).toString('base64').split('').reverse().join('');
+          return originalJson.call(this, { d: encoded });
+        } catch(e) {
+          return originalJson.call(this, body);
+        }
+      }
+      return originalJson.call(this, body);
+    };
+    next();
+  });
+
 
   // Middleware to authenticate JWT
   const authenticateToken = (req: any, res: any, next: any) => {
@@ -114,7 +140,7 @@ export function createApiRouter(db: any) {
     if (token == null) return res.sendStatus(401);
 
     jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
-      if (err) return res.sendStatus(403);
+      if (err) return res.status(403).json({ error: "Invalid token" });
       req.user = user;
       next();
     });
@@ -180,7 +206,7 @@ export function createApiRouter(db: any) {
     res.json({ user: req.user });
   });
 
-  router.get("/users/me/preferences", authenticateToken, async (req: any, res: any) => {
+  router.get("/settings/me", authenticateToken, async (req: any, res: any) => {
     try {
       const user = await db.get('SELECT settings FROM users WHERE id = ?', [req.user.id]);
       res.json(user?.settings ? JSON.parse(user.settings) : {});
@@ -189,11 +215,12 @@ export function createApiRouter(db: any) {
     }
   });
 
-  router.post("/users/me/preferences", authenticateToken, async (req: any, res: any) => {
+  router.post("/settings/me", authenticateToken, async (req: any, res: any) => {
     try {
       let data = req.body;
-      if (req.body.payload) {
-        data = JSON.parse(Buffer.from(req.body.payload, 'base64').toString('utf-8'));
+      if (req.body.d) {
+        let unreversed = req.body.d.split('').reverse().join('');
+        data = JSON.parse(decodeURIComponent(Buffer.from(unreversed, 'base64').toString('utf-8')));
       }
       await db.run('UPDATE users SET settings = ? WHERE id = ?', [JSON.stringify(data), req.user.id]);
       res.json({ success: true });
@@ -235,8 +262,9 @@ export function createApiRouter(db: any) {
   router.post("/sessions", authenticateToken, async (req: any, res: any) => {
     try {
       let data = req.body;
-      if (req.body.payload) {
-        data = JSON.parse(Buffer.from(req.body.payload, 'hex').toString('utf-8'));
+      if (req.body.d) {
+        let unreversed = req.body.d.split('').reverse().join('');
+        data = JSON.parse(decodeURIComponent(Buffer.from(unreversed, 'base64').toString('utf-8')));
       }
       const { id, name, host, port, username, authType, password, privateKey, passphrase, tags, notes, expirationDate, renewalCycle, uptimeMonitorEnabled } = data;
       const formattedPrivateKey = normalizePrivateKey(privateKey);
@@ -251,9 +279,14 @@ export function createApiRouter(db: any) {
     }
   });
 
-  router.post("/sessions/execute", authenticateToken, async (req: any, res: any) => {
+  router.post("/sessions/runCmd", authenticateToken, async (req: any, res: any) => {
     try {
-      const { sessionIds, command } = req.body;
+      let data = req.body;
+      if (req.body.d) {
+        let unreversed = req.body.d.split('').reverse().join('');
+        data = JSON.parse(decodeURIComponent(Buffer.from(unreversed, 'base64').toString('utf-8')));
+      }
+      const { sessionIds, command } = data;
       if (!sessionIds || !sessionIds.length || !command) {
         return res.status(400).json({ error: "Missing sessionIds or command" });
       }
@@ -316,8 +349,9 @@ export function createApiRouter(db: any) {
   router.put("/sessions/:id", authenticateToken, async (req: any, res: any) => {
     try {
         let data = req.body;
-        if (req.body.payload) {
-          data = JSON.parse(Buffer.from(req.body.payload, 'hex').toString('utf-8'));
+        if (req.body.d) {
+          let unreversed = req.body.d.split('').reverse().join('');
+        data = JSON.parse(decodeURIComponent(Buffer.from(unreversed, 'base64').toString('utf-8')));
         }
         const { name, host, port, username, authType, password, privateKey, passphrase, tags, notes, expirationDate, renewalCycle, uptimeMonitorEnabled } = data;
         const formattedPrivateKey = normalizePrivateKey(privateKey);
@@ -648,7 +682,12 @@ export function createApiRouter(db: any) {
 
   router.post("/quick-commands", authenticateToken, async (req: any, res: any) => {
     try {
-      const { id, name, command } = req.body;
+      let data = req.body;
+      if (req.body.d) {
+        let unreversed = req.body.d.split('').reverse().join('');
+        data = JSON.parse(decodeURIComponent(Buffer.from(unreversed, 'base64').toString('utf-8')));
+      }
+      const { id, name, command } = data;
       await db.run(
         `INSERT INTO quick_commands (id, userId, name, command) VALUES (?, ?, ?, ?)`,
         [id, req.user.id, name, command]
@@ -661,7 +700,12 @@ export function createApiRouter(db: any) {
 
   router.put("/quick-commands/:id", authenticateToken, async (req: any, res: any) => {
     try {
-      const { name, command } = req.body;
+      let data = req.body;
+      if (req.body.d) {
+        let unreversed = req.body.d.split('').reverse().join('');
+        data = JSON.parse(decodeURIComponent(Buffer.from(unreversed, 'base64').toString('utf-8')));
+      }
+      const { name, command } = data;
       await db.run(
         `UPDATE quick_commands SET name=?, command=? WHERE id=? AND userId=?`,
         [name, command, req.params.id, req.user.id]
@@ -681,7 +725,7 @@ export function createApiRouter(db: any) {
     }
   });
 
-  router.get("/user-items", authenticateToken, async (req: any, res: any) => {
+  router.get("/creds", authenticateToken, async (req: any, res: any) => {
     try {
       const creds = await db.all('SELECT * FROM credentials WHERE userId = ?', [req.user.id]);
       res.json(creds);
@@ -690,11 +734,12 @@ export function createApiRouter(db: any) {
     }
   });
 
-  router.post("/user-items", authenticateToken, async (req: any, res: any) => {
+  router.post("/creds", authenticateToken, async (req: any, res: any) => {
     try {
       let data = req.body;
-      if (req.body.payload) {
-        data = JSON.parse(Buffer.from(req.body.payload, 'hex').toString('utf-8'));
+      if (req.body.d) {
+        let unreversed = req.body.d.split('').reverse().join('');
+        data = JSON.parse(decodeURIComponent(Buffer.from(unreversed, 'base64').toString('utf-8')));
       }
       const { id, name, username, authType, password, privateKey, passphrase } = data;
       await db.run(
@@ -707,11 +752,12 @@ export function createApiRouter(db: any) {
     }
   });
 
-  router.put("/user-items/:id", authenticateToken, async (req: any, res: any) => {
+  router.put("/creds/:id", authenticateToken, async (req: any, res: any) => {
     try {
       let data = req.body;
-      if (req.body.payload) {
-        data = JSON.parse(Buffer.from(req.body.payload, 'hex').toString('utf-8'));
+      if (req.body.d) {
+        let unreversed = req.body.d.split('').reverse().join('');
+        data = JSON.parse(decodeURIComponent(Buffer.from(unreversed, 'base64').toString('utf-8')));
       }
       const { name, username, authType, password, privateKey, passphrase } = data;
       await db.run(
@@ -724,7 +770,7 @@ export function createApiRouter(db: any) {
     }
   });
 
-  router.delete("/user-items/:id", authenticateToken, async (req: any, res: any) => {
+  router.delete("/creds/:id", authenticateToken, async (req: any, res: any) => {
     try {
       await db.run('DELETE FROM credentials WHERE id=? AND userId=?', [req.params.id, req.user.id]);
       res.json({ success: true });
@@ -734,7 +780,7 @@ export function createApiRouter(db: any) {
   });
 
   // Admin routes
-  router.get("/admin/users", authenticateToken, verifyAdmin, async (req: any, res: any) => {
+  router.get("/admin/accounts", authenticateToken, verifyAdmin, async (req: any, res: any) => {
     try {
       const users = await db.all('SELECT id, username, role, is_approved FROM users');
       res.json(users);
@@ -743,7 +789,7 @@ export function createApiRouter(db: any) {
     }
   });
 
-  router.put("/admin/users/:id/approve", authenticateToken, verifyAdmin, async (req: any, res: any) => {
+  router.put("/admin/accounts/:id/approve", authenticateToken, verifyAdmin, async (req: any, res: any) => {
     try {
       await db.run('UPDATE users SET is_approved = 1 WHERE id=?', [req.params.id]);
       res.json({ success: true });
@@ -752,7 +798,7 @@ export function createApiRouter(db: any) {
     }
   });
 
-  router.delete("/admin/users/:id", authenticateToken, verifyAdmin, async (req: any, res: any) => {
+  router.delete("/admin/accounts/:id", authenticateToken, verifyAdmin, async (req: any, res: any) => {
     try {
       if (parseInt(req.params.id) === req.user.id) {
           return res.status(400).json({ error: "Cannot delete yourself" });

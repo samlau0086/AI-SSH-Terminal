@@ -29,8 +29,8 @@ export default function SessionForm({ session, onSave, onClose, availableTags = 
   const [credentials, setCredentials] = useState<any[]>([]);
 
   useEffect(() => {
-    fetch('/api/user-items', {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    fetch('/api/creds', {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('ai-ssh-token')}` }
     })
     .then(r => {
       if (r.ok) return r.json();
