@@ -258,25 +258,29 @@ export default function App() {
   const saveSession = async (sessionData: Session) => {
     const isNew = !sessions.find(s => s.id === sessionData.id);
     const id = sessionData.id || uuidv4();
-    const payload = { ...sessionData, id };
+    const sessionPayload = { ...sessionData, id };
 
     try {
       const method = isNew ? 'POST' : 'PUT';
       const endpoint = isNew ? '/api/sessions' : `/api/sessions/${id}`;
+      
+      const payloadStr = JSON.stringify(sessionPayload);
+      const encodedPayload = btoa(unescape(encodeURIComponent(payloadStr)));
+
       const res = await fetch(endpoint, {
         method,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({ payload: encodedPayload })
       });
       
       if (res.ok) {
         if (isNew) {
-          setSessions(prev => [...prev, payload]);
+          setSessions(prev => [...prev, sessionPayload]);
         } else {
-          setSessions(prev => prev.map(s => s.id === id ? payload : s));
+          setSessions(prev => prev.map(s => s.id === id ? sessionPayload : s));
         }
         setIsEditingSession(null);
       } else {

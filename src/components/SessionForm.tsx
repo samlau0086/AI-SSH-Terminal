@@ -29,10 +29,13 @@ export default function SessionForm({ session, onSave, onClose, availableTags = 
   const [credentials, setCredentials] = useState<any[]>([]);
 
   useEffect(() => {
-    fetch('/api/credentials', {
+    fetch('/api/users/me/auth-profiles', {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     })
-    .then(r => r.json())
+    .then(r => {
+      if (r.ok) return r.json();
+      throw new Error(`Failed to fetch credentials: ${r.status}`);
+    })
     .then(data => {
       if (Array.isArray(data)) setCredentials(data);
     })

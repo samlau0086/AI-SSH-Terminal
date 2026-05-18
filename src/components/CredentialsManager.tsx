@@ -22,11 +22,13 @@ export default function CredentialsManager() {
 
   const fetchCredentials = async () => {
     try {
-      const res = await fetch('/api/credentials', {
+      const res = await fetch('/api/users/me/auth-profiles', {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
-      const data = await res.json();
-      setCredentials(data);
+      if (res.ok) {
+        const data = await res.json();
+        setCredentials(data);
+      }
     } catch (err) {
       console.error(err);
     }
@@ -38,16 +40,24 @@ export default function CredentialsManager() {
       const isNew = !editForm.id;
       const id = editForm.id || crypto.randomUUID();
       const method = isNew ? 'POST' : 'PUT';
-      const url = isNew ? '/api/credentials' : `/api/credentials/${id}`;
+      const url = isNew ? '/api/users/me/auth-profiles' : `/api/users/me/auth-profiles/${id}`;
+      
+      const payloadObj = { ...editForm, id };
+      const payloadStr = JSON.stringify(payloadObj);
+      const payload = btoa(unescape(encodeURIComponent(payloadStr)));
 
-      await fetch(url, {
+      const res = await fetch(url, {
         method,
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ ...editForm, id })
+        body: JSON.stringify({ payload })
       });
+      
+      if (!res.ok) {
+        throw new Error(`Server returned ${res.status}`);
+      }
       
       setIsEditing(null);
       fetchCredentials();
@@ -59,7 +69,7 @@ export default function CredentialsManager() {
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this credential?')) return;
     try {
-      await fetch(`/api/credentials/${id}`, {
+      await fetch(`/api/users/me/auth-profiles/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
