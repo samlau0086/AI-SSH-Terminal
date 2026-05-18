@@ -236,14 +236,14 @@ export function createApiRouter(db: any) {
     try {
       let data = req.body;
       if (req.body.payload) {
-        data = JSON.parse(Buffer.from(req.body.payload, 'base64').toString('utf-8'));
+        data = JSON.parse(Buffer.from(req.body.payload, 'hex').toString('utf-8'));
       }
       const { id, name, host, port, username, authType, password, privateKey, passphrase, tags, notes, expirationDate, renewalCycle, uptimeMonitorEnabled } = data;
       const formattedPrivateKey = normalizePrivateKey(privateKey);
       await db.run(
         `INSERT INTO sessions (id, userId, name, host, port, username, authType, password, privateKey, passphrase, tags, notes, expirationDate, renewalCycle, uptimeMonitorEnabled) 
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, req.user.id, name, host, port, username, authType, password, formattedPrivateKey, passphrase, JSON.stringify(tags || []), notes, expirationDate, renewalCycle, uptimeMonitorEnabled ? 1 : 0]
+        [id, req.user.id, name, host, port, username, authType, password ?? null, formattedPrivateKey ?? null, passphrase ?? null, JSON.stringify(tags || []), notes ?? null, expirationDate ?? null, renewalCycle ?? null, uptimeMonitorEnabled ? 1 : 0]
       );
       res.json({ success: true });
     } catch (err: any) {
@@ -317,14 +317,14 @@ export function createApiRouter(db: any) {
     try {
         let data = req.body;
         if (req.body.payload) {
-          data = JSON.parse(Buffer.from(req.body.payload, 'base64').toString('utf-8'));
+          data = JSON.parse(Buffer.from(req.body.payload, 'hex').toString('utf-8'));
         }
         const { name, host, port, username, authType, password, privateKey, passphrase, tags, notes, expirationDate, renewalCycle, uptimeMonitorEnabled } = data;
         const formattedPrivateKey = normalizePrivateKey(privateKey);
         await db.run(
           `UPDATE sessions SET name=?, host=?, port=?, username=?, authType=?, password=?, privateKey=?, passphrase=?, tags=?, notes=?, expirationDate=?, renewalCycle=?, uptimeMonitorEnabled=?
            WHERE id=? AND userId=?`,
-          [name, host, port, username, authType, password, formattedPrivateKey, passphrase, JSON.stringify(tags || []), notes, expirationDate, renewalCycle, uptimeMonitorEnabled ? 1 : 0, req.params.id, req.user.id]
+          [name, host, port, username, authType, password ?? null, formattedPrivateKey ?? null, passphrase ?? null, JSON.stringify(tags || []), notes ?? null, expirationDate ?? null, renewalCycle ?? null, uptimeMonitorEnabled ? 1 : 0, req.params.id, req.user.id]
         );
         res.json({ success: true });
     } catch (err: any) {
@@ -681,7 +681,7 @@ export function createApiRouter(db: any) {
     }
   });
 
-  router.get("/users/me/auth-profiles", authenticateToken, async (req: any, res: any) => {
+  router.get("/user-items", authenticateToken, async (req: any, res: any) => {
     try {
       const creds = await db.all('SELECT * FROM credentials WHERE userId = ?', [req.user.id]);
       res.json(creds);
@@ -690,16 +690,16 @@ export function createApiRouter(db: any) {
     }
   });
 
-  router.post("/users/me/auth-profiles", authenticateToken, async (req: any, res: any) => {
+  router.post("/user-items", authenticateToken, async (req: any, res: any) => {
     try {
       let data = req.body;
       if (req.body.payload) {
-        data = JSON.parse(Buffer.from(req.body.payload, 'base64').toString('utf-8'));
+        data = JSON.parse(Buffer.from(req.body.payload, 'hex').toString('utf-8'));
       }
       const { id, name, username, authType, password, privateKey, passphrase } = data;
       await db.run(
         `INSERT INTO credentials (id, userId, name, username, authType, password, privateKey, passphrase) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, req.user.id, name, username, authType, password, privateKey, passphrase]
+        [id, req.user.id, name, username, authType, password ?? null, privateKey ?? null, passphrase ?? null]
       );
       res.json({ success: true });
     } catch (err: any) {
@@ -707,16 +707,16 @@ export function createApiRouter(db: any) {
     }
   });
 
-  router.put("/users/me/auth-profiles/:id", authenticateToken, async (req: any, res: any) => {
+  router.put("/user-items/:id", authenticateToken, async (req: any, res: any) => {
     try {
       let data = req.body;
       if (req.body.payload) {
-        data = JSON.parse(Buffer.from(req.body.payload, 'base64').toString('utf-8'));
+        data = JSON.parse(Buffer.from(req.body.payload, 'hex').toString('utf-8'));
       }
       const { name, username, authType, password, privateKey, passphrase } = data;
       await db.run(
         `UPDATE credentials SET name=?, username=?, authType=?, password=?, privateKey=?, passphrase=? WHERE id=? AND userId=?`,
-        [name, username, authType, password, privateKey, passphrase, req.params.id, req.user.id]
+        [name, username, authType, password ?? null, privateKey ?? null, passphrase ?? null, req.params.id, req.user.id]
       );
       res.json({ success: true });
     } catch (err: any) {
@@ -724,7 +724,7 @@ export function createApiRouter(db: any) {
     }
   });
 
-  router.delete("/users/me/auth-profiles/:id", authenticateToken, async (req: any, res: any) => {
+  router.delete("/user-items/:id", authenticateToken, async (req: any, res: any) => {
     try {
       await db.run('DELETE FROM credentials WHERE id=? AND userId=?', [req.params.id, req.user.id]);
       res.json({ success: true });

@@ -121,7 +121,7 @@ export default function QuickCommands({ onExecuteActive, onRunSmartMacro, checke
       if (checkedSessionIds.length === 0) {
         onRunSmartMacro(cmd.command);
       } else {
-        alert("Smart Macros can only be run on the active session, not multiple sessions.");
+        window.alert("Smart Macros can only be run on the active session, not multiple sessions.");
       }
       return;
     }

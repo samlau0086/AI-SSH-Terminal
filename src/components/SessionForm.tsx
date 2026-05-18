@@ -29,7 +29,7 @@ export default function SessionForm({ session, onSave, onClose, availableTags = 
   const [credentials, setCredentials] = useState<any[]>([]);
 
   useEffect(() => {
-    fetch('/api/users/me/auth-profiles', {
+    fetch('/api/user-items', {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     })
     .then(r => {

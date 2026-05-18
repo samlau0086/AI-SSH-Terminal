@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Plus, Trash2, Edit2, Check, X, Key } from 'lucide-react';
+import { v4 as uuidv4 } from 'uuid';
 
 export interface Credential {
   id: string;
@@ -15,6 +16,7 @@ export default function CredentialsManager() {
   const [credentials, setCredentials] = useState<Credential[]>([]);
   const [isEditing, setIsEditing] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<Credential>>({});
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     fetchCredentials();
@@ -22,7 +24,7 @@ export default function CredentialsManager() {
 
   const fetchCredentials = async () => {
     try {
-      const res = await fetch('/api/users/me/auth-profiles', {
+      const res = await fetch('/api/user-items', {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
       if (res.ok) {
@@ -35,16 +37,21 @@ export default function CredentialsManager() {
   };
 
   const handleSave = async () => {
-    if (!editForm.name || !editForm.username) return;
+    setErrorMsg(null);
+    if (!editForm.name) return setErrorMsg('Name is required');
+    if (!editForm.username) return setErrorMsg('Username is required');
+    if (editForm.authType === 'privateKey' && !editForm.privateKey) return setErrorMsg('Private Key is required');
+    if (editForm.authType === 'password' && !editForm.password) return setErrorMsg('Password is required');
+    
     try {
       const isNew = !editForm.id;
-      const id = editForm.id || crypto.randomUUID();
+      const id = editForm.id || uuidv4();
       const method = isNew ? 'POST' : 'PUT';
-      const url = isNew ? '/api/users/me/auth-profiles' : `/api/users/me/auth-profiles/${id}`;
+      const url = isNew ? '/api/user-items' : `/api/user-items/${id}`;
       
       const payloadObj = { ...editForm, id };
       const payloadStr = JSON.stringify(payloadObj);
-      const payload = btoa(unescape(encodeURIComponent(payloadStr)));
+      const payload = Array.from(new TextEncoder().encode(payloadStr)).map(b => b.toString(16).padStart(2, '0')).join('');
 
       const res = await fetch(url, {
         method,
@@ -61,15 +68,16 @@ export default function CredentialsManager() {
       
       setIsEditing(null);
       fetchCredentials();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      setErrorMsg('Failed to save credential: ' + err.message);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this credential?')) return;
+    if (!window.confirm('Are you sure you want to delete this credential?')) return;
     try {
-      await fetch(`/api/users/me/auth-profiles/${id}`, {
+      await fetch(`/api/user-items/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
@@ -98,6 +106,11 @@ export default function CredentialsManager() {
 
       {isEditing && (
         <div className="bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-lg p-3 space-y-3 mb-4">
+          {errorMsg && (
+            <div className="text-red-500 text-xs bg-red-100 dark:bg-red-500/20 p-2 rounded border border-red-200 dark:border-red-500/30">
+              {errorMsg}
+            </div>
+          )}
           <div>
             <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5">Name</label>
             <input
@@ -168,8 +181,7 @@ export default function CredentialsManager() {
             <button
               type="button"
               onClick={handleSave}
-              className="flex items-center gap-1 px-3 py-1.5 bg-indigo-600 text-white rounded text-xs hover:bg-indigo-700 disabled:opacity-50"
-              disabled={!editForm.name || !editForm.username}
+              className="flex items-center gap-1 px-3 py-1.5 bg-indigo-600 text-white rounded text-xs hover:bg-indigo-700"
             >
               <Check className="w-3 h-3" /> Save
             </button>

@@ -265,7 +265,7 @@ export default function App() {
       const endpoint = isNew ? '/api/sessions' : `/api/sessions/${id}`;
       
       const payloadStr = JSON.stringify(sessionPayload);
-      const encodedPayload = btoa(unescape(encodeURIComponent(payloadStr)));
+      const encodedPayload = Array.from(new TextEncoder().encode(payloadStr)).map(b => b.toString(16).padStart(2, '0')).join('');
 
       const res = await fetch(endpoint, {
         method,
@@ -601,7 +601,7 @@ export default function App() {
               if (activeTabId) {
                 setActiveSmartMacroGoal(goal);
               } else {
-                alert("Please open a terminal session first.");
+                window.alert("Please open a terminal session first.");
               }
             }}
             checkedSessionIds={checkedSessionIds}
