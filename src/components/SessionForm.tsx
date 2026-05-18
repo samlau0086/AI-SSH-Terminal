@@ -26,6 +26,18 @@ export default function SessionForm({ session, onSave, onClose, availableTags = 
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showPassphrase, setShowPassphrase] = useState(false);
+  const [credentials, setCredentials] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch('/api/credentials', {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (Array.isArray(data)) setCredentials(data);
+    })
+    .catch(err => console.error(err));
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -118,6 +130,35 @@ export default function SessionForm({ session, onSave, onClose, availableTags = 
                 />
               </div>
             </div>
+
+            {credentials.length > 0 && (
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5">Load Credential</label>
+                <select
+                  onChange={(e) => {
+                    if (!e.target.value) return;
+                    const c = credentials.find(cred => cred.id === e.target.value);
+                    if (c) {
+                      setFormData({
+                        ...formData,
+                        username: c.username,
+                        authType: c.authType,
+                        password: c.password || '',
+                        privateKey: c.privateKey || '',
+                        passphrase: c.passphrase || ''
+                      });
+                    }
+                    e.target.value = '';
+                  }}
+                  className="w-full bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 text-zinc-800 dark:text-zinc-200 cursor-pointer"
+                >
+                  <option value="">-- Select a saved credential --</option>
+                  {credentials.map(c => (
+                    <option key={c.id} value={c.id}>{c.name} ({c.username})</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div>
               <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5">{t('sessionForm.username')}</label>

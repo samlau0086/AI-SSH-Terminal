@@ -45,6 +45,18 @@ export async function initDb() {
       FOREIGN KEY(userId) REFERENCES users(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS credentials (
+      id TEXT PRIMARY KEY,
+      userId INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      username TEXT NOT NULL,
+      authType TEXT NOT NULL,
+      password TEXT,
+      privateKey TEXT,
+      passphrase TEXT,
+      FOREIGN KEY(userId) REFERENCES users(id) ON DELETE CASCADE
+    );
+    
     CREATE TABLE IF NOT EXISTS quick_commands (
       id TEXT PRIMARY KEY,
       userId INTEGER NOT NULL,
@@ -655,6 +667,50 @@ export function createApiRouter(db: any) {
   router.delete("/quick-commands/:id", authenticateToken, async (req: any, res: any) => {
     try {
       await db.run('DELETE FROM quick_commands WHERE id=? AND userId=?', [req.params.id, req.user.id]);
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  router.get("/credentials", authenticateToken, async (req: any, res: any) => {
+    try {
+      const creds = await db.all('SELECT * FROM credentials WHERE userId = ?', [req.user.id]);
+      res.json(creds);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  router.post("/credentials", authenticateToken, async (req: any, res: any) => {
+    try {
+      const { id, name, username, authType, password, privateKey, passphrase } = req.body;
+      await db.run(
+        `INSERT INTO credentials (id, userId, name, username, authType, password, privateKey, passphrase) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, req.user.id, name, username, authType, password, privateKey, passphrase]
+      );
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  router.put("/credentials/:id", authenticateToken, async (req: any, res: any) => {
+    try {
+      const { name, username, authType, password, privateKey, passphrase } = req.body;
+      await db.run(
+        `UPDATE credentials SET name=?, username=?, authType=?, password=?, privateKey=?, passphrase=? WHERE id=? AND userId=?`,
+        [name, username, authType, password, privateKey, passphrase, req.params.id, req.user.id]
+      );
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  router.delete("/credentials/:id", authenticateToken, async (req: any, res: any) => {
+    try {
+      await db.run('DELETE FROM credentials WHERE id=? AND userId=?', [req.params.id, req.user.id]);
       res.json({ success: true });
     } catch (err: any) {
       res.status(500).json({ error: err.message });

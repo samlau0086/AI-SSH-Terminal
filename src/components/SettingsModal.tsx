@@ -1,8 +1,9 @@
   import { useState, useEffect } from 'react';
-import { X, Server, Activity, CheckCircle2, AlertCircle } from 'lucide-react';
+import { X, Server, Activity, CheckCircle2, AlertCircle, Settings as SettingsIcon, Bell, Key } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { GoogleGenAI } from "@google/genai";
 import OpenAI from "openai";
+import CredentialsManager from './CredentialsManager';
 
 export interface AISettings {
   provider: 'gemini' | 'openai';
@@ -22,6 +23,7 @@ interface Props {
 
 export default function SettingsModal({ settings, onSave, onClose }: Props) {
   const { t } = useTranslation();
+  const [activeTab, setActiveTab] = useState<'general' | 'notifications' | 'credentials'>('general');
   const [formData, setFormData] = useState<AISettings>({ ...settings });
   const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const [testMessage, setTestMessage] = useState('');
@@ -153,111 +155,142 @@ export default function SettingsModal({ settings, onSave, onClose }: Props) {
           </button>
         </div>
         
-        <form onSubmit={handleSubmit} className="p-4 space-y-4">
-          <p className="text-xs text-zinc-500 text-zinc-500 dark:text-zinc-400 mb-4">{t('settings.description')}</p>
+        <div className="flex border-b border-zinc-200 dark:border-zinc-800">
+          <button
+            onClick={() => setActiveTab('general')}
+            className={`flex-1 py-3 text-[11px] font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 ${activeTab === 'general' ? 'border-b-2 border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
+          >
+            <SettingsIcon className="w-3.5 h-3.5" />
+            General
+          </button>
+          <button
+            onClick={() => setActiveTab('notifications')}
+            className={`flex-1 py-3 text-[11px] font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 ${activeTab === 'notifications' ? 'border-b-2 border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
+          >
+            <Bell className="w-3.5 h-3.5" />
+            Notifications
+          </button>
+          <button
+            onClick={() => setActiveTab('credentials')}
+            className={`flex-1 py-3 text-[11px] font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 ${activeTab === 'credentials' ? 'border-b-2 border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
+          >
+            <Key className="w-3.5 h-3.5" />
+            Credentials
+          </button>
+        </div>
 
-          <div className="space-y-4">
-            <div>
-              <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5">{t('settings.aiProvider')}</label>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setFormData({...formData, provider: 'gemini'})}
-                  className={`flex-1 py-2 px-3 text-[11px] font-bold uppercase tracking-wider rounded-md border transition-colors flex items-center justify-center gap-2 ${formData.provider === 'gemini' ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-400' : 'dark:bg-[#09090b] border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:dark:text-zinc-300 text-zinc-700'}`}
-                >
-                  {t('settings.providerGemini')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFormData({...formData, provider: 'openai'})}
-                  className={`flex-1 py-2 px-3 text-[11px] font-bold uppercase tracking-wider rounded-md border transition-colors flex items-center justify-center gap-2 ${formData.provider === 'openai' ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' : 'dark:bg-[#09090b] border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:dark:text-zinc-300 text-zinc-700'}`}
-                >
-                  <Server className="w-3.5 h-3.5" />
-                  {t('settings.providerOpenAI')}
-                </button>
-              </div>
-            </div>
+        {activeTab === 'credentials' ? (
+          <div className="p-4 max-h-[75vh] overflow-y-auto">
+            <CredentialsManager />
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="p-4 overflow-y-auto max-h-[75vh] space-y-4">
+            {activeTab === 'general' && (
+              <div className="space-y-4">
+                <p className="text-xs text-zinc-500 text-zinc-500 dark:text-zinc-400 mb-4">{t('settings.description')}</p>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5">{t('settings.aiProvider')}</label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setFormData({...formData, provider: 'gemini'})}
+                      className={`flex-1 py-2 px-3 text-[11px] font-bold uppercase tracking-wider rounded-md border transition-colors flex items-center justify-center gap-2 ${formData.provider === 'gemini' ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-400' : 'dark:bg-[#09090b] border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:dark:text-zinc-300 text-zinc-700'}`}
+                    >
+                      {t('settings.providerGemini')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({...formData, provider: 'openai'})}
+                      className={`flex-1 py-2 px-3 text-[11px] font-bold uppercase tracking-wider rounded-md border transition-colors flex items-center justify-center gap-2 ${formData.provider === 'openai' ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' : 'dark:bg-[#09090b] border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:dark:text-zinc-300 text-zinc-700'}`}
+                    >
+                      <Server className="w-3.5 h-3.5" />
+                      {t('settings.providerOpenAI')}
+                    </button>
+                  </div>
+                </div>
 
-            <div>
-              <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5">{t('settings.apiKey')} *</label>
-              <input 
-                type="password" 
-                required
-                value={formData.apiKey || ''}
-                onChange={e => setFormData({...formData, apiKey: e.target.value})}
-                className="w-full bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 text-zinc-800 dark:text-zinc-200"
-                placeholder={t('settings.apiKeyPlaceholder')}
-              />
-            </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5">{t('settings.apiKey')} *</label>
+                  <input 
+                    type="password" 
+                    required={!formData.apiKey}
+                    value={formData.apiKey || ''}
+                    onChange={e => setFormData({...formData, apiKey: e.target.value})}
+                    className="w-full bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 text-zinc-800 dark:text-zinc-200"
+                    placeholder={t('settings.apiKeyPlaceholder')}
+                  />
+                </div>
 
-            {formData.provider === 'openai' && (
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5">{t('settings.baseUrl')}</label>
-                <input 
-                  type="text" 
-                  value={formData.baseUrl || ''}
-                  onChange={e => setFormData({...formData, baseUrl: e.target.value})}
-                  className="w-full bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500 text-zinc-800 dark:text-zinc-200"
-                  placeholder={t('settings.baseUrlPlaceholder')}
-                />
+                {formData.provider === 'openai' && (
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5">{t('settings.baseUrl')}</label>
+                    <input 
+                      type="text" 
+                      value={formData.baseUrl || ''}
+                      onChange={e => setFormData({...formData, baseUrl: e.target.value})}
+                      className="w-full bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500 text-zinc-800 dark:text-zinc-200"
+                      placeholder={t('settings.baseUrlPlaceholder')}
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5">{t('settings.model')} *</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={formData.model || ''}
+                    onChange={e => setFormData({...formData, model: e.target.value})}
+                    className={`w-full bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none text-zinc-800 dark:text-zinc-200 ${formData.provider === 'openai' ? 'focus:border-emerald-500' : 'focus:border-indigo-500'}`}
+                    placeholder={t('settings.modelPlaceholder')}
+                  />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5">{t('settings.commandHistorySize', 'Command History Size')}</label>
+                    <input 
+                      type="number" 
+                      min="1"
+                      max="1000"
+                      value={formData.commandHistorySize || 200}
+                      onChange={e => setFormData({...formData, commandHistorySize: parseInt(e.target.value) || 200})}
+                      className="w-full bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 text-zinc-800 dark:text-zinc-200"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5">{t('settings.multiLineCommandDelay', 'Multi-Line Delay (ms)')}</label>
+                    <input 
+                      type="number" 
+                      min="0"
+                      max="5000"
+                      step="50"
+                      value={formData.multiLineCommandDelay || 0}
+                      onChange={e => setFormData({...formData, multiLineCommandDelay: parseInt(e.target.value) || 0})}
+                      className="w-full bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 text-zinc-800 dark:text-zinc-200"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5">{t('settings.statsRefreshInterval', 'Stats Refresh Interval (ms)')}</label>
+                  <input 
+                    type="number" 
+                    min="1000"
+                    max="60000"
+                    step="500"
+                    value={formData.statsRefreshInterval || 10000}
+                    onChange={e => setFormData({...formData, statsRefreshInterval: parseInt(e.target.value) || 10000})}
+                    className="w-full bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 text-zinc-800 dark:text-zinc-200"
+                  />
+                </div>
               </div>
             )}
 
-            <div>
-              <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5">{t('settings.model')} *</label>
-              <input 
-                type="text" 
-                required
-                value={formData.model || ''}
-                onChange={e => setFormData({...formData, model: e.target.value})}
-                className={`w-full bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none text-zinc-800 dark:text-zinc-200 ${formData.provider === 'openai' ? 'focus:border-emerald-500' : 'focus:border-indigo-500'}`}
-                placeholder={t('settings.modelPlaceholder')}
-              />
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5">{t('settings.commandHistorySize', 'Command History Size')}</label>
-                <input 
-                  type="number" 
-                  min="1"
-                  max="1000"
-                  value={formData.commandHistorySize || 200}
-                  onChange={e => setFormData({...formData, commandHistorySize: parseInt(e.target.value) || 200})}
-                  className="w-full bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 text-zinc-800 dark:text-zinc-200"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5">{t('settings.multiLineCommandDelay', 'Multi-Line Delay (ms)')}</label>
-                <input 
-                  type="number" 
-                  min="0"
-                  max="5000"
-                  step="50"
-                  value={formData.multiLineCommandDelay || 0}
-                  onChange={e => setFormData({...formData, multiLineCommandDelay: parseInt(e.target.value) || 0})}
-                  className="w-full bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 text-zinc-800 dark:text-zinc-200"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5">{t('settings.statsRefreshInterval', 'Stats Refresh Interval (ms)')}</label>
-              <input 
-                type="number" 
-                min="1000"
-                max="60000"
-                step="500"
-                value={formData.statsRefreshInterval || 10000}
-                onChange={e => setFormData({...formData, statsRefreshInterval: parseInt(e.target.value) || 10000})}
-                className="w-full bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 text-zinc-800 dark:text-zinc-200"
-              />
-            </div>
-
-            <div className="pt-4 border-t border-zinc-200 dark:border-zinc-800">
-              <h3 className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-3">Uptime Monitor Notifications</h3>
-              
+            {activeTab === 'notifications' && (
               <div className="space-y-4">
+                <p className="text-xs text-zinc-500">Configure monitoring and notifications for your servers when they become unreachable.</p>
+                
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5">Check Interval (Minutes)</label>
                   <input
@@ -314,9 +347,9 @@ export default function SettingsModal({ settings, onSave, onClose }: Props) {
                   </div>
                 </div>
               </div>
-            </div>
+            )}
             
-            {testStatus !== 'idle' && (
+            {activeTab === 'general' && testStatus !== 'idle' && (
               <div className={`p-3 rounded-lg border text-xs flex items-start gap-2 ${ testStatus === 'testing' ? 'bg-zinc-800/50 border-zinc-700 dark:text-zinc-300 text-zinc-700' : testStatus === 'success' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-red-500/10 border-red-500/30 text-red-400' }`}>
                 {testStatus === 'testing' && <Activity className="w-4 h-4 animate-pulse shrink-0" />}
                 {testStatus === 'success' && <CheckCircle2 className="w-4 h-4 shrink-0" />}
@@ -324,35 +357,37 @@ export default function SettingsModal({ settings, onSave, onClose }: Props) {
                 <div className="flex-1 break-all mt-0.5">{testMessage || 'Testing connection...'}</div>
               </div>
             )}
-          </div>
 
-          <div className="flex justify-between items-center pt-4 mt-4 border-t border-zinc-200 dark:border-zinc-800">
-            <button
-              type="button"
-              onClick={handleTestModel}
-              disabled={testStatus === 'testing'}
-              className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold uppercase tracking-widest border border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-lg transition-colors disabled:opacity-50"
-            >
-              <Activity className="w-3.5 h-3.5" />
-              Test Connection
-            </button>
-            <div className="flex gap-2">
-              <button 
-                type="button" 
-                onClick={onClose}
-                className="px-4 py-2 text-xs font-bold uppercase tracking-widest hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 text-zinc-500 dark:text-zinc-400 rounded-lg transition-colors"
-              >
-                {t('settings.cancel')}
-              </button>
-              <button 
-                type="submit"
-                className="px-4 py-2 text-xs font-bold uppercase tracking-widest bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-colors"
-              >
-                {t('settings.save')}
-              </button>
+            <div className="flex justify-between items-center pt-4 mt-4 border-t border-zinc-200 dark:border-zinc-800">
+              {activeTab === 'general' ? (
+                <button
+                  type="button"
+                  onClick={handleTestModel}
+                  disabled={testStatus === 'testing'}
+                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold uppercase tracking-widest border border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  <Activity className="w-3.5 h-3.5" />
+                  Test Connection
+                </button>
+              ) : <div></div>}
+              <div className="flex gap-2">
+                <button 
+                  type="button" 
+                  onClick={onClose}
+                  className="px-4 py-2 text-xs font-bold uppercase tracking-widest hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 text-zinc-500 dark:text-zinc-400 rounded-lg transition-colors"
+                >
+                  {t('settings.cancel')}
+                </button>
+                <button 
+                  type="submit"
+                  className="px-4 py-2 text-xs font-bold uppercase tracking-widest bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-colors"
+                >
+                  {t('settings.save')}
+                </button>
+              </div>
             </div>
-          </div>
-        </form>
+          </form>
+        )}
       </div>
     </div>
   );
