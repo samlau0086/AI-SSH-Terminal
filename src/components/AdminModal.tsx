@@ -12,6 +12,7 @@ export default function AdminModal({ onClose }: Props) {
   const { token, user: currentUser } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deletingUserId, setDeletingUserId] = useState<number|null>(null);
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -48,19 +49,17 @@ export default function AdminModal({ onClose }: Props) {
 
   const deleteUser = async (id: number) => {
     if (id === currentUser?.id) return;
-    
-    if (confirm(t('auth.confirmDeleteUser') || 'Are you sure you want to delete this user?')) {
-      try {
-        const res = await fetch(`/api/admin/accounts/${id}`, {
-          method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) {
-          setUsers(users.filter(u => u.id !== id));
-        }
-      } catch (err) {
-        console.error(err);
+    setDeletingUserId(null);
+    try {
+      const res = await fetch(`/api/admin/accounts/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setUsers(users.filter(u => u.id !== id));
       }
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -108,13 +107,20 @@ export default function AdminModal({ onClose }: Props) {
                       </button>
                     )}
                     {u.id !== currentUser?.id && (
+                      deletingUserId === u.id ? (
+                        <div className="flex items-center gap-2">
+                           <button onClick={() => deleteUser(u.id)} className="px-2 py-1 text-[10px] uppercase font-bold text-red-500">Conf</button>
+                           <button onClick={() => setDeletingUserId(null)} className="px-2 py-1 text-[10px] uppercase font-bold text-zinc-500">Can</button>
+                        </div>
+                      ) : (
                       <button 
-                        onClick={() => deleteUser(u.id)}
+                        onClick={() => setDeletingUserId(u.id)}
                         className="p-2 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-colors"
                         title="Delete User"
                       >
                         <Trash className="w-4 h-4" />
                       </button>
+                      )
                     )}
                   </div>
                 </div>

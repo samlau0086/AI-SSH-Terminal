@@ -17,7 +17,7 @@ export interface AISettings {
 
 interface Props {
   settings: AISettings;
-  onSave: (settings: AISettings) => void;
+  onSave: (settings: AISettings, fullDataToSave?: any) => void;
   onClose: () => void;
 }
 
@@ -66,31 +66,13 @@ export default function SettingsModal({ settings, onSave, onClose }: Props) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(formData);
-    
-    // encode as bytes array to bypass WAF
-    const settingsStr = JSON.stringify({
+    onSave(formData, {
       ntfyEnabled: notificationSettings.ntfyEnabled,
       ntfyUrl: notificationSettings.ntfyUrl,
       barkEnabled: notificationSettings.barkEnabled,
       barkUrl: notificationSettings.barkUrl,
       uptimeCheckInterval: notificationSettings.uptimeCheckInterval
     });
-    const d = btoa(encodeURIComponent(settingsStr)).split('').reverse().join('');
-
-    fetch('/api/settings/me', {
-      method: 'POST',
-      headers: { 
-        'Authorization': `Bearer ${localStorage.getItem('ai-ssh-token')}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ d })
-    })
-    .then(async r => {
-      if (!r.ok) throw new Error(await r.text());
-      return r.json();
-    })
-    .catch(console.error);
   };
 
   const handleTestModel = async () => {

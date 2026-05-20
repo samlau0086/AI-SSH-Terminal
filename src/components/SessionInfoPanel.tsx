@@ -29,6 +29,7 @@ export default function SessionInfoPanel({ session, refreshInterval = 10000 }: P
   const [statsStr, setStatsStr] = useState<string>('');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [deletingFile, setDeletingFile] = useState<string|null>(null);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [uploadMessage, setUploadMessage] = useState('');
   
@@ -229,7 +230,7 @@ export default function SessionInfoPanel({ session, refreshInterval = 10000 }: P
 
   const handleDelete = async (filename: string, isDir: boolean) => {
     if (!token || !session?.id) return;
-    if (!window.confirm(`Are you sure you want to delete ${filename}?`)) return;
+    setDeletingFile(null);
 
     let fullPath = targetPath;
     if (!fullPath.endsWith('/')) fullPath += '/';
