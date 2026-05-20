@@ -96,6 +96,12 @@ export async function initDb() {
     await db.exec('ALTER TABLE users ADD COLUMN settings TEXT;');
   }
 
+  try {
+    await db.get('SELECT command_history FROM users LIMIT 1');
+  } catch(e) {
+    await db.exec('ALTER TABLE users ADD COLUMN command_history TEXT;');
+  }
+
   return db;
 }
 
@@ -223,6 +229,29 @@ export function createApiRouter(db: any) {
         data = JSON.parse(decodeURIComponent(Buffer.from(unreversed, 'base64').toString('utf-8')));
       }
       await db.run('UPDATE users SET settings = ? WHERE id = ?', [JSON.stringify(data), req.user.id]);
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+    router.get("/command-history", authenticateToken, async (req: any, res: any) => {
+    try {
+      const user = await db.get('SELECT command_history FROM users WHERE id = ?', [req.user.id]);
+      res.json(user?.command_history ? JSON.parse(user.command_history) : []);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  router.post("/command-history", authenticateToken, async (req: any, res: any) => {
+    try {
+      let data = req.body;
+      if (req.body.d) {
+        let unreversed = req.body.d.split('').reverse().join('');
+        data = JSON.parse(decodeURIComponent(Buffer.from(unreversed, 'base64').toString('utf-8')));
+      }
+      await db.run('UPDATE users SET command_history = ? WHERE id = ?', [JSON.stringify(data.history || []), req.user.id]);
       res.json({ success: true });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
