@@ -4,7 +4,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import { io, Socket } from 'socket.io-client';
 import '@xterm/xterm/css/xterm.css';
 import type { Session } from '../App';
-import { RefreshCw, Unplug, AlertCircle, History } from 'lucide-react';
+import { RefreshCw, Unplug, AlertCircle, History, Trash } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../hooks/useTheme';
 import TextareaAutosize from 'react-textarea-autosize';
@@ -423,7 +423,18 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, onContextUp
             <div className="absolute bottom-full right-0 mb-2 w-80 max-h-64 flex flex-col bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-xl z-50">
               <div className="p-2 border-b border-zinc-200 dark:border-zinc-800 flex justify-between items-center shrink-0">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Command History</span>
-                <span className="text-[10px] text-zinc-400">{history.length} items</span>
+                <div className="flex items-center gap-3">
+                    <span className="text-[10px] text-zinc-400">{history.length} items</span>
+                    {history.length > 0 && (
+                        <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setHistory([]); }}
+                            className="text-[10px] text-red-500 hover:text-red-600 uppercase tracking-widest font-bold"
+                        >
+                            Clear
+                        </button>
+                    )}
+                </div>
               </div>
               <div className="overflow-y-auto flex-1 custom-scrollbar">
                 {history.length === 0 ? (
@@ -431,22 +442,34 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, onContextUp
                 ) : (
                   <div className="py-1">
                     {history.map((cmd, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => {
-                          setCmdInput(cmd);
-                          setIsHistoryOpen(false);
-                          setTimeout(() => {
-                            const ta = document.getElementById('cmd-input-textarea');
-                            if (ta) ta.focus();
-                          }, 10);
-                        }}
-                        className="w-full text-left px-3 py-2 text-xs font-mono hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 truncate"
-                        title={cmd}
-                      >
-                        {cmd}
-                      </button>
+                      <div key={i} className="group relative w-full">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCmdInput(cmd);
+                            setIsHistoryOpen(false);
+                            setTimeout(() => {
+                              const ta = document.getElementById('cmd-input-textarea');
+                              if (ta) ta.focus();
+                            }, 10);
+                          }}
+                          className="w-full text-left px-3 py-2 text-xs font-mono hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 pr-8 truncate"
+                          title={cmd}
+                        >
+                          {cmd}
+                        </button>
+                        <button
+                          type="button"
+                          title="Delete command"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setHistory(prev => prev.filter((_, idx) => idx !== i));
+                          }}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center shrink-0"
+                        >
+                          <Trash className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     ))}
                   </div>
                 )}
