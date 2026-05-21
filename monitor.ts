@@ -29,12 +29,12 @@ export function startUptimeMonitor(db: any) {
            } catch(e) {}
         }
         
-        let ntfyEnabled = settings.ntfyEnabled ?? (settings.notificationChannel === 'ntfy');
+        
         let barkEnabled = settings.barkEnabled ?? (settings.notificationChannel === 'bark');
-        let ntfyUrl = settings.ntfyUrl || (settings.notificationChannel === 'ntfy' ? settings.notificationUrl : '');
+        
         let barkUrl = settings.barkUrl || (settings.notificationChannel === 'bark' ? settings.notificationUrl : '');
 
-        settings = { ...settings, ntfyEnabled, barkEnabled, ntfyUrl, barkUrl };
+        settings = { ...settings, barkEnabled, barkUrl };
         
         const intervalMs = (settings.uptimeCheckInterval || 5) * 60 * 1000;
         const now = Date.now();
@@ -65,7 +65,7 @@ export function startUptimeMonitor(db: any) {
 const lastNotified = new Map<string, number>();
 
 function sendNotification(session: any, settings: any) {
-    if (!settings.ntfyEnabled && !settings.barkEnabled) return;
+    if (!settings.barkEnabled) return;
 
     // Throttle notifications to max 1 per 10 minutes per session
     const last = lastNotified.get(session.id);
@@ -87,16 +87,5 @@ function sendNotification(session: any, settings: any) {
         .catch(err => console.error("[Uptime Monitor] Bark failed:", err));
     }
 
-    if (settings.ntfyEnabled && settings.ntfyUrl) {
-      fetch(settings.ntfyUrl, {
-        method: 'POST',
-        body: message,
-        headers: {
-            'Title': 'VPS Offline Alert',
-            'Tags': 'warning'
-        }
-      })
-      .then(res => res.text())
-      .catch(err => console.error("[Uptime Monitor] Ntfy failed:", err));
-    }
+
 }

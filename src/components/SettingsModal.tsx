@@ -29,8 +29,6 @@ export default function SettingsModal({ settings, onSave, onClose }: Props) {
   const [testMessage, setTestMessage] = useState('');
 
   const [notificationSettings, setNotificationSettings] = useState({
-    ntfyEnabled: false,
-    ntfyUrl: '',
     barkEnabled: false,
     barkUrl: '',
     uptimeCheckInterval: 5
@@ -46,16 +44,12 @@ export default function SettingsModal({ settings, onSave, onClose }: Props) {
     })
     .then(data => {
       if (data) {
-        let ntfyEnabled = data.ntfyEnabled ?? (data.notificationChannel === 'ntfy');
-        let ntfyUrl = data.ntfyUrl || (data.notificationChannel === 'ntfy' ? data.notificationUrl : '');
         let barkEnabled = data.barkEnabled ?? (data.notificationChannel === 'bark');
         let barkUrl = data.barkUrl || (data.notificationChannel === 'bark' ? data.notificationUrl : '');
 
         setNotificationSettings(prev => ({ 
           ...prev, 
           ...data,
-          ntfyEnabled,
-          ntfyUrl,
           barkEnabled,
           barkUrl
         }));
@@ -67,8 +61,6 @@ export default function SettingsModal({ settings, onSave, onClose }: Props) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave(formData, {
-      ntfyEnabled: notificationSettings.ntfyEnabled,
-      ntfyUrl: notificationSettings.ntfyUrl,
       barkEnabled: notificationSettings.barkEnabled,
       barkUrl: notificationSettings.barkUrl,
       uptimeCheckInterval: notificationSettings.uptimeCheckInterval
@@ -86,8 +78,6 @@ export default function SettingsModal({ settings, onSave, onClose }: Props) {
           'Authorization': `Bearer ${localStorage.getItem('ai-ssh-token')}`
         },
         body: JSON.stringify({
-          ntfyEnabled: notificationSettings.ntfyEnabled,
-          ntfyUrl: notificationSettings.ntfyUrl,
           barkEnabled: notificationSettings.barkEnabled,
           barkUrl: notificationSettings.barkUrl
         })
@@ -313,26 +303,7 @@ export default function SettingsModal({ settings, onSave, onClose }: Props) {
                 </div>
 
                 <div className="space-y-4 pt-2">
-                  <div>
-                    <label className="flex items-center gap-2 mb-2">
-                      <input 
-                        type="checkbox" 
-                        className="w-4 h-4 text-indigo-600 rounded border-zinc-300 dark:border-zinc-700 bg-transparent focus:ring-0 focus:ring-offset-0"
-                        checked={notificationSettings.ntfyEnabled}
-                        onChange={e => setNotificationSettings({...notificationSettings, ntfyEnabled: e.target.checked})}
-                      />
-                      <span className="text-sm text-zinc-700 dark:text-zinc-300 font-medium">ntfy.sh</span>
-                    </label>
-                    {notificationSettings.ntfyEnabled && (
-                      <input 
-                        type="text" 
-                        value={notificationSettings.ntfyUrl}
-                        onChange={e => setNotificationSettings({...notificationSettings, ntfyUrl: e.target.value})}
-                        className="w-full bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 text-zinc-800 dark:text-zinc-200"
-                        placeholder="https://ntfy.sh/mytopic"
-                      />
-                    )}
-                  </div>
+
 
                   <div>
                     <label className="flex items-center gap-2 mb-2">
@@ -359,7 +330,7 @@ export default function SettingsModal({ settings, onSave, onClose }: Props) {
                     <button
                       type="button"
                       onClick={handleTestNotification}
-                      disabled={testStatus === 'testing' || (!notificationSettings.ntfyEnabled && !notificationSettings.barkEnabled)}
+                      disabled={testStatus === 'testing' || (!notificationSettings.barkEnabled)}
                       className="w-full py-2 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                     >
                       {testStatus === 'testing' ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Test Notification'}
