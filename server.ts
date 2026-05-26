@@ -6,7 +6,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
 import { initDb, createApiRouter } from "./api.js";
-import { startUptimeMonitor } from "./monitor.js";
+import { startUptimeMonitor, startExpirationMonitor } from "./monitor.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -25,6 +25,8 @@ async function startServer() {
     
     // Start uptime monitor background process
     startUptimeMonitor(db);
+    // Start expiration monitor background process
+    startExpirationMonitor(db);
   } catch (err) {
     console.error("Failed to initialize database:", err);
     process.exit(1);

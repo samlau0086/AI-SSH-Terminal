@@ -31,7 +31,8 @@ export default function SettingsModal({ settings, onSave, onClose }: Props) {
   const [notificationSettings, setNotificationSettings] = useState({
     barkEnabled: false,
     barkUrl: '',
-    uptimeCheckInterval: 5
+    uptimeCheckInterval: 5,
+    expirationWarningDays: 7
   });
 
   useEffect(() => {
@@ -51,7 +52,8 @@ export default function SettingsModal({ settings, onSave, onClose }: Props) {
           ...prev, 
           ...data,
           barkEnabled,
-          barkUrl
+          barkUrl,
+          expirationWarningDays: data.expirationWarningDays ?? 7
         }));
       }
     })
@@ -63,7 +65,8 @@ export default function SettingsModal({ settings, onSave, onClose }: Props) {
     onSave(formData, {
       barkEnabled: notificationSettings.barkEnabled,
       barkUrl: notificationSettings.barkUrl,
-      uptimeCheckInterval: notificationSettings.uptimeCheckInterval
+      uptimeCheckInterval: notificationSettings.uptimeCheckInterval,
+      expirationWarningDays: notificationSettings.expirationWarningDays
     });
   };
 
@@ -298,6 +301,18 @@ export default function SettingsModal({ settings, onSave, onClose }: Props) {
                     max="1440"
                     value={notificationSettings.uptimeCheckInterval || 5}
                     onChange={e => setNotificationSettings({...notificationSettings, uptimeCheckInterval: Math.max(1, parseInt(e.target.value) || 5)})}
+                    className="w-full bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 text-zinc-800 dark:text-zinc-200"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5">Expiration Warning (Days Before)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="60"
+                    value={notificationSettings.expirationWarningDays || 7}
+                    onChange={e => setNotificationSettings({...notificationSettings, expirationWarningDays: Math.max(1, parseInt(e.target.value) || 7)})}
                     className="w-full bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 text-zinc-800 dark:text-zinc-200"
                   />
                 </div>
