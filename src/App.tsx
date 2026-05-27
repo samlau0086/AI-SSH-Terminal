@@ -13,6 +13,7 @@ import ImportExportModal from './components/ImportExportModal';
 import AuthPage from './components/AuthPage';
 import AdminModal from './components/AdminModal';
 import SmartMacroAgent from './components/SmartMacroAgent';
+import ConfirmModal from './components/ConfirmModal';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from './contexts/AuthContext';
 
@@ -93,6 +94,7 @@ export default function App() {
   }, [theme]);
 
   const [activeSession, setActiveSession] = useState<Session | null>(null);
+  const [sessionToDelete, setSessionToDelete] = useState<Session | null>(null);
   const [tabs, setTabs] = useState<{id: string, session: Session}[]>(() => {
     const saved = localStorage.getItem('ai-ssh-tabs');
     if (saved) {
@@ -579,7 +581,7 @@ export default function App() {
                         <Edit className="w-3.5 h-3.5" />
                       </button>
                       <button 
-                        onClick={(e) => { e.stopPropagation(); deleteSession(session.id); }}
+                        onClick={(e) => { e.stopPropagation(); setSessionToDelete(session); }}
                         className="text-zinc-500 hover:text-red-400 hidden group-hover:block"
                       >
                         <Trash className="w-3.5 h-3.5" />
@@ -824,6 +826,18 @@ export default function App() {
       )}
 
       {isAdminOpen && <AdminModal onClose={() => setIsAdminOpen(false)} />}
+      
+      {sessionToDelete && (
+        <ConfirmModal
+          title={t('confirm.deleteSessionTitle', 'Delete Session')}
+          message={t('confirm.deleteSessionMessage', `Are you sure you want to delete "${sessionToDelete.name || sessionToDelete.host}"? This action cannot be undone.`)}
+          onConfirm={() => {
+            deleteSession(sessionToDelete.id);
+            setSessionToDelete(null);
+          }}
+          onCancel={() => setSessionToDelete(null)}
+        />
+      )}
 
       {activeSmartMacroGoal && activeTabId && (
         <SmartMacroAgent 
