@@ -1,12 +1,11 @@
 import express from "express";
 import { createServer } from "http";
 import { Server } from "socket.io";
-import { Client } from "ssh2";
 import path from "path";
 import { fileURLToPath } from "url";
-import fs from "fs";
 import { initDb, createApiRouter } from "./api.js";
 import { startUptimeMonitor, startExpirationMonitor } from "./monitor.js";
+import { closeSshSession, connectSshSession, type ConnectedSshSession } from "./ssh.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -49,20 +48,21 @@ async function startServer() {
   app.use("/api", createApiRouter(db));
 
   io.on("connection", (socket) => {
-    let sshClient: Client | null = null;
+    let sshConnection: ConnectedSshSession | null = null;
     let sshStream: any = null;
 
-    socket.on("ssh-connect", (config) => {
-      if (sshClient) {
-        sshClient.end();
+    socket.on("ssh-connect", async (config) => {
+      if (sshConnection) {
+        closeSshSession(sshConnection);
       }
-      
-      sshClient = new Client();
+      sshConnection = null;
 
-      sshClient.on("ready", () => {
+      try {
+        sshConnection = await connectSshSession(config);
+        const sshClient = sshConnection.client;
         socket.emit("ssh-status", { status: "connected", message: "SSH connection established." });
         
-        sshClient?.shell({ term: 'xterm-256color' }, (err, stream) => {
+        sshClient.shell({ term: 'xterm-256color' }, (err, stream) => {
           if (err) {
             socket.emit("ssh-status", { status: "error", message: "Failed to open shell: " + err.message });
             return;
@@ -73,45 +73,11 @@ async function startServer() {
 
           stream.on("close", () => {
              socket.emit("ssh-status", { status: "disconnected", message: "Shell closed." });
-             sshClient?.end();
+             closeSshSession(sshConnection);
           }).on("data", (data: any) => {
              socket.emit("ssh-data", data.toString("utf-8"));
           });
         });
-      }).on("error", (err: any) => {
-         socket.emit("ssh-status", { status: "error", message: err?.message || err?.level || String(err) });
-      }).on("end", () => {
-         socket.emit("ssh-status", { status: "disconnected", message: "SSH connection ended." });
-      });
-
-      try {
-        const connectConfig: any = {
-          host: config.host,
-          port: config.port || 22,
-          username: config.username,
-          readyTimeout: 10000 // Add a timeout so it doesn't hang forever
-        };
-        if (config.password) {
-          connectConfig.password = config.password;
-        } else if (config.privateKey) {
-          let pk: string = config.privateKey;
-          pk = pk.replace(/\r\n/g, '\n').trim() + '\n';
-          if (pk.split('\n').length <= 3) {
-            const match = pk.match(/(-----BEGIN [^-]+-----)\s*(.*?)\s*(-----END [^-]+-----)/s);
-            if (match) {
-               const header = match[1];
-               const body = match[2].replace(/\s+/g, '');
-               const footer = match[3];
-               const bodyLines = body.match(/.{1,70}/g)?.join('\n') || body;
-               pk = `${header}\n${bodyLines}\n${footer}\n`;
-            }
-          }
-          connectConfig.privateKey = pk;
-          if (config.passphrase) {
-            connectConfig.passphrase = config.passphrase;
-          }
-        }
-        sshClient.connect(connectConfig);
       } catch (err: any) {
         socket.emit("ssh-status", { status: "error", message: err?.message || String(err) });
       }
@@ -130,9 +96,7 @@ async function startServer() {
     });
 
     socket.on("disconnect", () => {
-      if (sshClient) {
-        sshClient.end();
-      }
+      closeSshSession(sshConnection);
     });
   });
 

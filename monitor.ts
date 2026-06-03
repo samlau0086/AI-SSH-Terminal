@@ -1,4 +1,4 @@
-import { exec } from 'child_process';
+import { closeSshSession, connectStoredSshSession } from './ssh.js';
 
 const lastChecked = new Map<string, number>();
 
@@ -39,21 +39,22 @@ export function startUptimeMonitor(db: any) {
         const intervalMs = (settings.uptimeCheckInterval || 5) * 60 * 1000;
         const now = Date.now();
 
-        sessionsForUser.forEach((session: any) => {
+        sessionsForUser.forEach(async (session: any) => {
            const last = lastChecked.get(session.id) || 0;
            if (now - last < intervalMs) return; // not due yet
 
            lastChecked.set(session.id, now);
 
-           exec(`ping -c 1 -W 2 ${session.host}`, (err, stdout, stderr) => {
-              if (err) {
-                 // Offline
-                 console.log(`[Uptime Monitor] Host ${session.host} is offline!`);
-                 sendNotification(session, settings);
-              } else {
-                 console.log(`[Uptime Monitor] Host ${session.host} is online.`);
-              }
-           });
+           let connection = null;
+           try {
+              connection = await connectStoredSshSession(db, session, session.userId);
+              console.log(`[Uptime Monitor] Host ${session.host} is online.`);
+           } catch (err) {
+              console.log(`[Uptime Monitor] Host ${session.host} is offline!`);
+              sendNotification(session, settings);
+           } finally {
+              closeSshSession(connection);
+           }
         });
       });
     } catch (e: any) {

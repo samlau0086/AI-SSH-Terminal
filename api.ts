@@ -6,7 +6,7 @@ import sqlite3 from 'sqlite3';
 import multer from 'multer';
 import fs from 'fs';
 
-import { Client } from "ssh2";
+import { closeSshSession, connectStoredSshSession, normalizePrivateKey } from "./ssh.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "super-secret-key-please-change-it-in-production";
 const upload = multer({ dest: '/tmp/uploads/' });
@@ -38,6 +38,7 @@ export async function initDb() {
       password TEXT,
       privateKey TEXT,
       passphrase TEXT,
+      jumpHostId TEXT,
       tags TEXT,
       notes TEXT,
       expirationDate TEXT,
@@ -88,6 +89,12 @@ export async function initDb() {
     await db.get('SELECT uptimeMonitorEnabled FROM sessions LIMIT 1');
   } catch(e) {
     await db.exec('ALTER TABLE sessions ADD COLUMN uptimeMonitorEnabled INTEGER DEFAULT 0;');
+  }
+
+  try {
+    await db.get('SELECT jumpHostId FROM sessions LIMIT 1');
+  } catch(e) {
+    await db.exec('ALTER TABLE sessions ADD COLUMN jumpHostId TEXT;');
   }
 
   try {
@@ -309,22 +316,6 @@ export function createApiRouter(db: any) {
     }
   });
 
-  const normalizePrivateKey = (key: string | null | undefined): string | null | undefined => {
-    if (!key) return key;
-    let pk = key.replace(/\r\n/g, '\n').trim() + '\n';
-    if (pk.split('\n').length <= 3) {
-      const match = pk.match(/(-----BEGIN [^-]+-----)\s*(.*?)\s*(-----END [^-]+-----)/s);
-      if (match) {
-        const header = match[1];
-        const body = match[2].replace(/\s+/g, '');
-        const footer = match[3];
-        const bodyLines = body.match(/.{1,70}/g)?.join('\n') || body;
-        pk = `${header}\n${bodyLines}\n${footer}\n`;
-      }
-    }
-    return pk;
-  };
-
   router.post("/sessions", authenticateToken, async (req: any, res: any) => {
     try {
       let data = req.body;
@@ -332,12 +323,12 @@ export function createApiRouter(db: any) {
         let unreversed = req.body.d.split('').reverse().join('');
         data = JSON.parse(decodeURIComponent(Buffer.from(unreversed, 'base64').toString('utf-8')));
       }
-      const { id, name, host, port, username, authType, password, privateKey, passphrase, tags, notes, expirationDate, renewalCycle, uptimeMonitorEnabled } = data;
+      const { id, name, host, port, username, authType, password, privateKey, passphrase, jumpHostId, tags, notes, expirationDate, renewalCycle, uptimeMonitorEnabled } = data;
       const formattedPrivateKey = normalizePrivateKey(privateKey);
       await db.run(
-        `INSERT INTO sessions (id, userId, name, host, port, username, authType, password, privateKey, passphrase, tags, notes, expirationDate, renewalCycle, uptimeMonitorEnabled) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, req.user.id, name, host, port, username, authType, password ?? null, formattedPrivateKey ?? null, passphrase ?? null, JSON.stringify(tags || []), notes ?? null, expirationDate ?? null, renewalCycle ?? null, uptimeMonitorEnabled ? 1 : 0]
+        `INSERT INTO sessions (id, userId, name, host, port, username, authType, password, privateKey, passphrase, jumpHostId, tags, notes, expirationDate, renewalCycle, uptimeMonitorEnabled) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, req.user.id, name, host, port, username, authType, password ?? null, formattedPrivateKey ?? null, passphrase ?? null, jumpHostId || null, JSON.stringify(tags || []), notes ?? null, expirationDate ?? null, renewalCycle ?? null, uptimeMonitorEnabled ? 1 : 0]
       );
       res.json({ success: true });
     } catch (err: any) {
@@ -361,24 +352,26 @@ export function createApiRouter(db: any) {
       const sessions = await db.all(`SELECT * FROM sessions WHERE id IN (${placeholders}) AND userId = ?`, [...sessionIds, req.user.id]);
       
       const results = await Promise.all(sessions.map((session: any) => {
-        return new Promise((resolve) => {
-          const sshClient = new Client();
+        return new Promise(async (resolve) => {
+          let connection: any = null;
           let output = '';
           let executionTimeout = setTimeout(() => {
-            sshClient.end();
+            closeSshSession(connection);
             resolve({ sessionId: session.id, error: 'Command execution timed out' });
           }, 30000); // 30 second timeout
-          
-          sshClient.on('ready', () => {
+
+          try {
+            connection = await connectStoredSshSession(db, session, req.user.id);
+            const sshClient = connection.client;
             sshClient.exec(command, (err, stream) => {
               if (err) {
                  clearTimeout(executionTimeout);
-                 sshClient.end();
+                 closeSshSession(connection);
                  return resolve({ sessionId: session.id, error: err.message });
               }
               stream.on('close', (code: any, signal: any) => {
                 clearTimeout(executionTimeout);
-                sshClient.end();
+                closeSshSession(connection);
                 resolve({ sessionId: session.id, output, code });
               }).on('data', (data: any) => {
                 output += data.toString('utf-8');
@@ -386,19 +379,6 @@ export function createApiRouter(db: any) {
                 output += data.toString('utf-8');
               });
             });
-          }).on('error', (err) => {
-            clearTimeout(executionTimeout);
-            resolve({ sessionId: session.id, error: err.message });
-          });
-
-          try {
-            const config: any = { host: session.host, port: session.port, username: session.username, readyTimeout: 10000 };
-            if (session.password) config.password = session.password;
-            if (session.privateKey) {
-              config.privateKey = normalizePrivateKey(session.privateKey);
-              if (session.passphrase) config.passphrase = session.passphrase;
-            }
-            sshClient.connect(config);
           } catch(err: any) {
             clearTimeout(executionTimeout);
             resolve({ sessionId: session.id, error: err.message });
@@ -419,12 +399,12 @@ export function createApiRouter(db: any) {
           let unreversed = req.body.d.split('').reverse().join('');
         data = JSON.parse(decodeURIComponent(Buffer.from(unreversed, 'base64').toString('utf-8')));
         }
-        const { name, host, port, username, authType, password, privateKey, passphrase, tags, notes, expirationDate, renewalCycle, uptimeMonitorEnabled } = data;
+        const { name, host, port, username, authType, password, privateKey, passphrase, jumpHostId, tags, notes, expirationDate, renewalCycle, uptimeMonitorEnabled } = data;
         const formattedPrivateKey = normalizePrivateKey(privateKey);
         await db.run(
-          `UPDATE sessions SET name=?, host=?, port=?, username=?, authType=?, password=?, privateKey=?, passphrase=?, tags=?, notes=?, expirationDate=?, renewalCycle=?, uptimeMonitorEnabled=?
+          `UPDATE sessions SET name=?, host=?, port=?, username=?, authType=?, password=?, privateKey=?, passphrase=?, jumpHostId=?, tags=?, notes=?, expirationDate=?, renewalCycle=?, uptimeMonitorEnabled=?
            WHERE id=? AND userId=?`,
-          [name, host, port, username, authType, password ?? null, formattedPrivateKey ?? null, passphrase ?? null, JSON.stringify(tags || []), notes ?? null, expirationDate ?? null, renewalCycle ?? null, uptimeMonitorEnabled ? 1 : 0, req.params.id, req.user.id]
+          [name, host, port, username, authType, password ?? null, formattedPrivateKey ?? null, passphrase ?? null, jumpHostId || null, JSON.stringify(tags || []), notes ?? null, expirationDate ?? null, renewalCycle ?? null, uptimeMonitorEnabled ? 1 : 0, req.params.id, req.user.id]
         );
         res.json({ success: true });
     } catch (err: any) {
@@ -451,11 +431,13 @@ export function createApiRouter(db: any) {
 
        const targetPath = req.body.path || `./${file.originalname}`;
 
-       const sshClient = new Client();
-       sshClient.on('ready', () => {
+       let connection: any = null;
+       try {
+           connection = await connectStoredSshSession(db, session, req.user.id);
+           const sshClient = connection.client;
            sshClient.sftp((err, sftp) => {
                if (err) {
-                   sshClient.end();
+                   closeSshSession(connection);
                    fs.unlink(file.path, () => {});
                    return res.status(500).json({ error: err.message });
                }
@@ -474,7 +456,7 @@ export function createApiRouter(db: any) {
                resolvePath(targetPath, (actualPath) => {
                    // transfer file
                    sftp.fastPut(file.path, actualPath, (putErr) => {
-                       sshClient.end();
+                       closeSshSession(connection);
                        fs.unlink(file.path, () => {}); // clean up local temp file
                        if (putErr) {
                            return res.status(500).json({ error: putErr.message });
@@ -483,19 +465,6 @@ export function createApiRouter(db: any) {
                    });
                });
            });
-       }).on('error', (err: any) => {
-           fs.unlink(file.path, () => {});
-           res.status(500).json({ error: err?.message || String(err) });
-       });
-
-       try {
-         const config: any = { host: session.host, port: session.port, username: session.username, readyTimeout: 10000 };
-         if (session.password) config.password = session.password;
-         if (session.privateKey) {
-           config.privateKey = session.privateKey;
-           if (session.passphrase) config.passphrase = session.passphrase;
-         }
-         sshClient.connect(config);
        } catch(err: any) {
           fs.unlink(file.path, () => {});
           res.status(500).json({ error: err?.message || String(err) });
@@ -510,22 +479,24 @@ export function createApiRouter(db: any) {
        const session = await db.get(`SELECT * FROM sessions WHERE id = ? AND userId = ?`, [req.params.id, req.user.id]);
        if (!session) return res.status(404).json({ error: "Session not found" });
 
-       const sshClient = new Client();
-       sshClient.on('ready', () => {
+       let connection: any = null;
+       try {
+           connection = await connectStoredSshSession(db, session, req.user.id);
+           const sshClient = connection.client;
            sshClient.exec("top -b -n 1 | head -n 5 && free -m && df -m /", (err, stream) => {
                if (err) {
-                   sshClient.end();
+                   closeSshSession(connection);
                    return res.status(500).json({ error: err.message });
                }
                let output = '';
                let executionTimeout = setTimeout(() => {
-                   sshClient.end();
+                   closeSshSession(connection);
                    if (!res.headersSent) res.status(500).json({ error: 'Command execution timed out' });
                }, 10000); // 10 second timeout
 
                stream.on('close', () => {
                    clearTimeout(executionTimeout);
-                   sshClient.end();
+                   closeSshSession(connection);
                    if (!res.headersSent) res.json({ output });
                }).on('data', (data: any) => {
                    output += data.toString('utf-8');
@@ -533,18 +504,6 @@ export function createApiRouter(db: any) {
                    output += data.toString('utf-8');
                });
            });
-       }).on('error', (err: any) => {
-           if (!res.headersSent) res.status(500).json({ error: err?.message || String(err) });
-       });
-
-       try {
-         const config: any = { host: session.host, port: session.port, username: session.username, readyTimeout: 10000 };
-         if (session.password) config.password = session.password;
-         if (session.privateKey) {
-           config.privateKey = session.privateKey;
-           if (session.passphrase) config.passphrase = session.passphrase;
-         }
-         sshClient.connect(config);
        } catch(err: any) {
           if (!res.headersSent) res.status(500).json({ error: err?.message || String(err) });
        }
@@ -560,11 +519,13 @@ export function createApiRouter(db: any) {
 
        const dirPath = req.query.path || '~/';
 
-       const sshClient = new Client();
-       sshClient.on('ready', () => {
+       let connection: any = null;
+       try {
+           connection = await connectStoredSshSession(db, session, req.user.id);
+           const sshClient = connection.client;
            sshClient.sftp((err, sftp) => {
                if (err) {
-                   sshClient.end();
+                   closeSshSession(connection);
                    return res.status(500).json({ error: err.message });
                }
                
@@ -581,7 +542,7 @@ export function createApiRouter(db: any) {
 
                resolvePath(dirPath, (actualPath) => {
                    sftp.readdir(actualPath, (readErr, list) => {
-                       sshClient.end();
+                       closeSshSession(connection);
                        if (readErr) {
                            return res.status(500).json({ error: readErr.message });
                        }
@@ -589,18 +550,6 @@ export function createApiRouter(db: any) {
                    });
                });
            });
-       }).on('error', (err: any) => {
-           res.status(500).json({ error: err?.message || String(err) });
-       });
-
-       try {
-         const config: any = { host: session.host, port: session.port, username: session.username, readyTimeout: 10000 };
-         if (session.password) config.password = session.password;
-         if (session.privateKey) {
-           config.privateKey = session.privateKey;
-           if (session.passphrase) config.passphrase = session.passphrase;
-         }
-         sshClient.connect(config);
        } catch(err: any) {
           res.status(500).json({ error: err?.message || String(err) });
        }
@@ -617,11 +566,13 @@ export function createApiRouter(db: any) {
        const filePath = req.query.path;
        if (!filePath) return res.status(400).json({ error: "Missing path" });
 
-       const sshClient = new Client();
-       sshClient.on('ready', () => {
+       let connection: any = null;
+       try {
+           connection = await connectStoredSshSession(db, session, req.user.id);
+           const sshClient = connection.client;
            sshClient.sftp((err, sftp) => {
                if (err) {
-                   sshClient.end();
+                   closeSshSession(connection);
                    return res.status(500).json({ error: err.message });
                }
                
@@ -639,7 +590,7 @@ export function createApiRouter(db: any) {
                resolvePath(filePath, (actualPath) => {
                    const readStream = sftp.createReadStream(actualPath);
                    readStream.on('error', (readErr) => {
-                       sshClient.end();
+                       closeSshSession(connection);
                        if (!res.headersSent) res.status(500).json({ error: readErr.message });
                    });
 
@@ -647,25 +598,13 @@ export function createApiRouter(db: any) {
                    res.setHeader('Content-Disposition', `attachment; filename="${actualPath.split('/').pop()}"`);
                    readStream.pipe(res);
                    res.on('finish', () => {
-                       sshClient.end();
+                       closeSshSession(connection);
                    });
                    res.on('close', () => {
-                       sshClient.end();
+                       closeSshSession(connection);
                    });
                });
            });
-       }).on('error', (err: any) => {
-           if (!res.headersSent) res.status(500).json({ error: err?.message || String(err) });
-       });
-
-       try {
-         const config: any = { host: session.host, port: session.port, username: session.username, readyTimeout: 10000 };
-         if (session.password) config.password = session.password;
-         if (session.privateKey) {
-           config.privateKey = session.privateKey;
-           if (session.passphrase) config.passphrase = session.passphrase;
-         }
-         sshClient.connect(config);
        } catch(err: any) {
           if (!res.headersSent) res.status(500).json({ error: err?.message || String(err) });
        }
@@ -684,11 +623,13 @@ export function createApiRouter(db: any) {
        
        if (!filePath) return res.status(400).json({ error: "Missing path" });
 
-       const sshClient = new Client();
-       sshClient.on('ready', () => {
+       let connection: any = null;
+       try {
+           connection = await connectStoredSshSession(db, session, req.user.id);
+           const sshClient = connection.client;
            sshClient.sftp((err, sftp) => {
                if (err) {
-                   sshClient.end();
+                   closeSshSession(connection);
                    return res.status(500).json({ error: err.message });
                }
                
@@ -705,7 +646,7 @@ export function createApiRouter(db: any) {
 
                resolvePath(filePath, (actualPath) => {
                    const cb = (delErr: any) => {
-                       sshClient.end();
+                       closeSshSession(connection);
                        if (delErr) return res.status(500).json({ error: delErr.message });
                        res.json({ success: true, message: "Deleted successfully" });
                    };
@@ -717,18 +658,6 @@ export function createApiRouter(db: any) {
                    }
                });
            });
-       }).on('error', (err: any) => {
-           if (!res.headersSent) res.status(500).json({ error: err?.message || String(err) });
-       });
-
-       try {
-         const config: any = { host: session.host, port: session.port, username: session.username, readyTimeout: 10000 };
-         if (session.password) config.password = session.password;
-         if (session.privateKey) {
-           config.privateKey = session.privateKey;
-           if (session.passphrase) config.passphrase = session.passphrase;
-         }
-         sshClient.connect(config);
        } catch(err: any) {
           if (!res.headersSent) res.status(500).json({ error: err?.message || String(err) });
        }

@@ -27,6 +27,7 @@ export interface Session {
   password?: string;
   privateKey?: string;
   passphrase?: string;
+  jumpHostId?: string;
   tags: string[];
   notes: string;
   expirationDate?: string;
@@ -304,6 +305,8 @@ export default function App() {
           setSessions(prev => [...prev, sessionPayload]);
         } else {
           setSessions(prev => prev.map(s => s.id === id ? sessionPayload : s));
+          setTabs(prev => prev.map(t => t.session.id === id ? { ...t, session: sessionPayload } : t));
+          setActiveSession(prev => prev?.id === id ? sessionPayload : prev);
         }
         setIsEditingSession(null);
       } else {
@@ -694,7 +697,8 @@ export default function App() {
                  >
                    <TerminalComponent 
                      ref={el => { if (el) terminalRefs.current[tab.id] = el; }}
-                     session={tab.session} 
+                     session={sessions.find(s => s.id === tab.session.id) || tab.session}
+                     allSessions={sessions}
                      onContextUpdate={ctx => setTerminalContexts(prev => ({...prev, [tab.id]: ctx}))}
                      historySize={aiSettings.commandHistorySize}
                      multiLineCommandDelay={aiSettings.multiLineCommandDelay}
@@ -790,6 +794,7 @@ export default function App() {
           onSave={saveSession} 
           onClose={() => setIsEditingSession(null)} 
           availableTags={Array.from(new Set(sessions.flatMap(s => s.tags || [])))}
+          availableSessions={sessions}
         />
       )}
 

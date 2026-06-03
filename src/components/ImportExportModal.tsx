@@ -13,6 +13,7 @@ interface Session {
   password?: string;
   privateKey?: string;
   passphrase?: string;
+  jumpHostId?: string;
   tags: string[];
   notes: string;
 }

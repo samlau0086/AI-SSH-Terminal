@@ -11,6 +11,7 @@ import TextareaAutosize from 'react-textarea-autosize';
 
 interface Props {
   session: Session;
+  allSessions?: Session[];
   onContextUpdate: (context: string) => void;
   historySize?: number;
   multiLineCommandDelay?: number;
@@ -20,7 +21,7 @@ export interface TerminalRef {
   executeCommand: (cmd: string) => void;
 }
 
-const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, onContextUpdate, historySize = 200, multiLineCommandDelay = 0 }, ref) => {
+const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, allSessions = [], onContextUpdate, historySize = 200, multiLineCommandDelay = 0 }, ref) => {
   const { t } = useTranslation();
   const { isDark } = useTheme();
   const terminalRef = useRef<HTMLDivElement>(null);
@@ -237,7 +238,8 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, onContextUp
         authType: session.authType,
         password: session.password,
         privateKey: session.privateKey,
-        passphrase: session.passphrase
+        passphrase: session.passphrase,
+        jumpHost: session.jumpHostId ? allSessions.find(s => s.id === session.jumpHostId) : null
       };
       
       newSocket.emit('ssh-connect', connectOpts);

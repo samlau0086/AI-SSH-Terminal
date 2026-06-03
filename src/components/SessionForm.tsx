@@ -11,9 +11,10 @@ interface Props {
   onSave: (session: Session) => void;
   onClose: () => void;
   availableTags?: string[];
+  availableSessions?: Session[];
 }
 
-export default function SessionForm({ session, onSave, onClose, availableTags = [] }: Props) {
+export default function SessionForm({ session, onSave, onClose, availableTags = [], availableSessions = [] }: Props) {
   const { t } = useTranslation();
   const suggestionRef = useRef<HTMLDivElement>(null);
   const [formData, setFormData] = useState<Partial<Session>>({
@@ -56,6 +57,8 @@ export default function SessionForm({ session, onSave, onClose, availableTags = 
     tag.toLowerCase().includes(tagInput.toLowerCase()) && 
     !(formData.tags || []).includes(tag)
   );
+
+  const jumpHostOptions = availableSessions.filter(s => s.id !== formData.id && !s.jumpHostId);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -163,6 +166,22 @@ export default function SessionForm({ session, onSave, onClose, availableTags = 
                 </select>
               </div>
             )}
+
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5">Jump Host</label>
+              <select
+                value={formData.jumpHostId || ''}
+                onChange={e => setFormData({...formData, jumpHostId: e.target.value || undefined})}
+                className="w-full bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 text-zinc-800 dark:text-zinc-200"
+              >
+                <option value="">Direct connection</option>
+                {jumpHostOptions.map(s => (
+                  <option key={s.id} value={s.id}>
+                    {(s.name || s.host)} ({s.username}@{s.host}:{s.port || 22})
+                  </option>
+                ))}
+              </select>
+            </div>
 
             <div>
               <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5">{t('sessionForm.username')}</label>
