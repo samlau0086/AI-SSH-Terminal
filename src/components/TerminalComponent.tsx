@@ -30,6 +30,7 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, allSessions
   const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('connecting');
   const [errorMsg, setErrorMsg] = useState('');
   const outputBuffer = useRef<string[]>([]);
+  const connectionCleanupRef = useRef<(() => void) | null>(null);
   
   const [cmdInput, setCmdInput] = useState('');
   const [history, setHistory] = useState<string[]>([]);
@@ -166,6 +167,8 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, allSessions
   const connect = () => {
     if (!terminalRef.current) return;
 
+    connectionCleanupRef.current?.();
+    connectionCleanupRef.current = null;
     setStatus('connecting');
     setErrorMsg('');
     outputBuffer.current = [];
@@ -202,6 +205,7 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, allSessions
       };
       const term = new Terminal({
         cursorBlink: true,
+        convertEol: true,
         theme: isDark ? darkTheme : lightTheme,
         fontFamily: '"JetBrains Mono", "Fira Code", monospace',
         fontSize: 14,
@@ -231,6 +235,9 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, allSessions
 
     newSocket.on('connect', () => {
       // Configure credentials to send (NEVER print these)
+      const terminalSize = xtermRef.current
+        ? { cols: xtermRef.current.cols, rows: xtermRef.current.rows }
+        : undefined;
       const connectOpts = {
         host: session.host,
         port: session.port,
@@ -239,6 +246,7 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, allSessions
         password: session.password,
         privateKey: session.privateKey,
         passphrase: session.passphrase,
+        terminalSize,
         jumpHost: session.jumpHostId ? allSessions.find(s => s.id === session.jumpHostId) : null
       };
       
@@ -271,6 +279,7 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, allSessions
         
         // Debounce context update slightly
         onContextUpdate(outputBuffer.current.join('\n'));
+        xtermRef.current.scrollToBottom();
       }
     });
 
@@ -286,11 +295,20 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, allSessions
       }
     });
 
-    return () => {
+    if (xtermRef.current) {
+      newSocket.emit('ssh-resize', {
+        cols: xtermRef.current.cols,
+        rows: xtermRef.current.rows
+      });
+    }
+
+    connectionCleanupRef.current = () => {
       dataListener?.dispose();
       resizeListener?.dispose();
       newSocket.disconnect();
     };
+
+    return connectionCleanupRef.current;
   };
 
   useEffect(() => {
@@ -328,12 +346,11 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, allSessions
   }, [isDark]);
 
   useEffect(() => {
-    connect();
+    const cleanup = connect();
     
     return () => {
-      if (socket) {
-        socket.disconnect();
-      }
+      cleanup?.();
+      connectionCleanupRef.current = null;
     };
   }, [session]);
 

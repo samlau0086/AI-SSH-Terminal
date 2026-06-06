@@ -62,7 +62,13 @@ async function startServer() {
         const sshClient = sshConnection.client;
         socket.emit("ssh-status", { status: "connected", message: "SSH connection established." });
         
-        sshClient.shell({ term: 'xterm-256color' }, (err, stream) => {
+        const shellOptions: any = {
+          term: 'xterm-256color',
+          cols: config.terminalSize?.cols || 80,
+          rows: config.terminalSize?.rows || 24
+        };
+
+        sshClient.shell(shellOptions, (err, stream) => {
           if (err) {
             socket.emit("ssh-status", { status: "error", message: "Failed to open shell: " + err.message });
             return;
