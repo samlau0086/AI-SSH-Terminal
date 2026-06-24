@@ -108,13 +108,14 @@ export default function SessionInfoPanel({ session, refreshInterval = 10000 }: P
       isMounted = false;
       if (timer) clearTimeout(timer);
     };
-  }, [token, session]);
+  }, [token, session?.id, refreshInterval]);
 
   const loadFiles = async (dirPath: string) => {
     if (!token || !session?.id) return;
     
     setIsLoadingFiles(true);
     setFileError('');
+    setDeletingFile(null);
     try {
       const res = await fetch(`/api/sessions/${session.id}/files?path=${encodeURIComponent(dirPath)}`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -491,16 +492,44 @@ export default function SessionInfoPanel({ session, refreshInterval = 10000 }: P
                                                  </button>
                                              )}
                                              {f.filename !== '.' && f.filename !== '..' && (
-                                                 <button 
-                                                    onClick={(e) => {
-                                                        e.stopPropagation(); // prevent directory navigation if it's a dir
-                                                        handleDelete(f.filename, isDir);
-                                                    }}
-                                                    className="text-zinc-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity p-1"
-                                                    title="Delete"
-                                                 >
-                                                    <Trash className="w-3.5 h-3.5" />
-                                                 </button>
+                                                 deletingFile === f.filename ? (
+                                                     <div className="flex items-center gap-1">
+                                                         <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleDelete(f.filename, isDir);
+                                                            }}
+                                                            className="text-[10px] font-bold uppercase tracking-widest text-red-500 hover:text-red-600 px-1"
+                                                            title="Confirm delete"
+                                                         >
+                                                            Conf
+                                                         </button>
+                                                         <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setDeletingFile(null);
+                                                            }}
+                                                            className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 px-1"
+                                                            title="Cancel delete"
+                                                         >
+                                                            Can
+                                                         </button>
+                                                     </div>
+                                                 ) : (
+                                                     <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation(); // prevent directory navigation if it's a dir
+                                                            setDeletingFile(f.filename);
+                                                        }}
+                                                        className="text-zinc-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity p-1"
+                                                        title="Delete"
+                                                     >
+                                                        <Trash className="w-3.5 h-3.5" />
+                                                     </button>
+                                                 )
                                              )}
                                          </div>
                                      </td>

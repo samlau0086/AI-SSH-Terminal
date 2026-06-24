@@ -352,7 +352,7 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, allSessions
       cleanup?.();
       connectionCleanupRef.current = null;
     };
-  }, [session]);
+  }, [session.id]);
 
   // Clean up terminal on unmount
   useEffect(() => {
