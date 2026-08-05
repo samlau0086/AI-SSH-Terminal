@@ -418,7 +418,7 @@ export default function App() {
       {/* Left Sidebar: Sessions */}
       <aside 
         style={{ width: `${leftSidebarWidth}px` }} 
-        className="flex flex-col gap-4 shrink-0"
+        className="flex min-h-0 flex-col gap-4 shrink-0"
       >
         <div className="h-12 bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 rounded-xl flex items-center px-4 gap-3 shrink-0">
           <div className="w-3 h-3 rounded-full bg-red-500"></div>
@@ -475,7 +475,7 @@ export default function App() {
           </button>
         </div>
         
-        <div className="flex-1 bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 flex flex-col gap-4">
+        <div className="flex-1 min-h-0 overflow-hidden bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 flex flex-col gap-4">
           <div className="flex justify-between items-center shrink-0">
             <h2 className="text-xs font-bold uppercase tracking-widest text-zinc-500">{t('app.savedSessions')}</h2>
             <div className="flex items-center gap-1">
@@ -532,7 +532,7 @@ export default function App() {
             </div>
           )}
           
-          <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain space-y-2 pr-1 custom-scrollbar">
             {sessions.filter(s => {
               const matchesTag = !selectedTag || (s.tags && s.tags.includes(selectedTag));
               const matchesSearch = !searchQuery || 
