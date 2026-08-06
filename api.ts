@@ -7,6 +7,7 @@ import multer from 'multer';
 import fs from 'fs';
 
 import { closeSshSession, connectStoredSshSession, normalizePrivateKey } from "./ssh.js";
+import { createTransferPlan, executeTransfer, openSftp } from "./sftp-transfer.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "super-secret-key-please-change-it-in-production";
 const upload = multer({ dest: '/tmp/uploads/' });
@@ -471,6 +472,109 @@ export function createApiRouter(db: any) {
        }
     } catch (err: any) {
        res.status(500).json({ error: err?.message || String(err) });
+    }
+  });
+
+  const getTransferSessions = async (sourceId: string, targetId: string, userId: number) => {
+    if (!targetId) throw Object.assign(new Error('Missing targetSessionId'), { status: 400 });
+    if (sourceId === targetId) throw Object.assign(new Error('Source and target sessions must be different'), { status: 400 });
+    const sessions = await db.all(
+      'SELECT * FROM sessions WHERE id IN (?, ?) AND userId = ?',
+      [sourceId, targetId, userId]
+    );
+    const source = sessions.find((item: any) => item.id === sourceId);
+    const target = sessions.find((item: any) => item.id === targetId);
+    if (!source || !target) throw Object.assign(new Error('Source or target session not found'), { status: 404 });
+    return { source, target };
+  };
+
+  router.post("/sessions/:id/transfers/preflight", authenticateToken, async (req: any, res: any) => {
+    let sourceConnection: any = null;
+    let targetConnection: any = null;
+    try {
+      const { targetSessionId, sourcePath, targetDirectory } = req.body || {};
+      if (!sourcePath || !targetDirectory) return res.status(400).json({ error: 'Missing sourcePath or targetDirectory' });
+      const { source, target } = await getTransferSessions(req.params.id, targetSessionId, req.user.id);
+      sourceConnection = await connectStoredSshSession(db, source, req.user.id);
+      targetConnection = await connectStoredSshSession(db, target, req.user.id);
+      const sourceSftp = await openSftp(sourceConnection.client);
+      const targetSftp = await openSftp(targetConnection.client);
+      const plan = await createTransferPlan(sourceSftp, targetSftp, sourcePath, targetDirectory);
+      res.json({
+        sourceType: plan.sourceType,
+        sourcePath: plan.sourcePath,
+        targetPath: plan.targetPath,
+        totalFiles: plan.totalFiles,
+        totalBytes: plan.totalBytes,
+        conflictCount: plan.conflictCount,
+        conflicts: plan.conflicts,
+        blockingConflicts: plan.blockingConflicts,
+      });
+    } catch (error: any) {
+      res.status(error?.status || 500).json({ error: error?.message || String(error) });
+    } finally {
+      closeSshSession(sourceConnection);
+      closeSshSession(targetConnection);
+    }
+  });
+
+  router.post("/sessions/:id/transfers", authenticateToken, async (req: any, res: any) => {
+    let sourceConnection: any = null;
+    let targetConnection: any = null;
+    let completed = false;
+    const abortController = new AbortController();
+    const abort = () => {
+      if (!completed) abortController.abort(new Error('Transfer cancelled'));
+    };
+    req.on('aborted', abort);
+    res.on('close', abort);
+
+    try {
+      const { targetSessionId, sourcePath, targetDirectory, overwrite = false } = req.body || {};
+      if (!sourcePath || !targetDirectory) return res.status(400).json({ error: 'Missing sourcePath or targetDirectory' });
+      const { source, target } = await getTransferSessions(req.params.id, targetSessionId, req.user.id);
+      sourceConnection = await connectStoredSshSession(db, source, req.user.id);
+      targetConnection = await connectStoredSshSession(db, target, req.user.id);
+      const sourceSftp = await openSftp(sourceConnection.client);
+      const targetSftp = await openSftp(targetConnection.client);
+      const plan = await createTransferPlan(sourceSftp, targetSftp, sourcePath, targetDirectory);
+
+      if (plan.blockingConflicts.length) {
+        return res.status(409).json({ error: 'File and directory types conflict at the target', blockingConflicts: plan.blockingConflicts });
+      }
+      if (plan.conflictCount && !overwrite) {
+        return res.status(409).json({ error: 'Target files already exist', conflictCount: plan.conflictCount, conflicts: plan.conflicts });
+      }
+
+      res.status(200);
+      res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-cache, no-transform');
+      res.flushHeaders();
+      const send = (event: any) => {
+        if (!res.destroyed) res.write(`${JSON.stringify(event)}\n`);
+      };
+      send({ type: 'start', totalFiles: plan.totalFiles, totalBytes: plan.totalBytes, targetPath: plan.targetPath });
+      const result = await executeTransfer(sourceSftp, targetSftp, plan, Boolean(overwrite), abortController.signal, (progress) => {
+        send({ type: 'progress', ...progress });
+      });
+      completed = true;
+      send({ type: 'complete', ...result });
+      res.end();
+    } catch (error: any) {
+      if (res.headersSent) {
+        if (!res.destroyed) {
+          res.write(`${JSON.stringify({ type: 'error', error: error?.message || String(error) })}\n`);
+          res.end();
+        }
+      } else {
+        res.status(error?.status || 500).json({ error: error?.message || String(error) });
+      }
+    } finally {
+      completed = true;
+      req.off('aborted', abort);
+      res.off('close', abort);
+      closeSshSession(sourceConnection);
+      closeSshSession(targetConnection);
     }
   });
 

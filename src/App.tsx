@@ -726,7 +726,7 @@ export default function App() {
               style={{ height: `${bottomPanelHeight}px` }}
               className="shrink-0 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-xl"
             >
-               <SessionInfoPanel session={activeSession!} refreshInterval={aiSettings.statsRefreshInterval} />
+               <SessionInfoPanel session={activeSession!} allSessions={sessions} refreshInterval={aiSettings.statsRefreshInterval} />
             </div>
           </>
         ) : (

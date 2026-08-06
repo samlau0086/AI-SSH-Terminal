@@ -80,6 +80,27 @@
     "qaCheckSystem": "系统状态",
     "qaCheckSystemPrompt": "请帮我检查系统状态（CPU、内存、磁盘空间），并给出一个健康状态摘要。"
   },
+  "fileTransfer": {
+    "title": "传输到其他会话",
+    "sendToSession": "发送到会话",
+    "source": "源文件",
+    "targetSession": "目标会话",
+    "targetDirectory": "目标目录",
+    "destination": "传输位置",
+    "openDirectory": "打开目录",
+    "noTargetSession": "请先保存另一个 SSH 会话再传输文件。",
+    "loadTargetFailed": "无法加载目标目录",
+    "typeConflict": "目标位置存在同名但类型不同的文件或目录，请先处理冲突。",
+    "conflictsFound": "将覆盖 {{count}} 个已存在的文件。",
+    "starting": "正在开始传输...",
+    "complete": "传输完成",
+    "cancelled": "传输已取消",
+    "files": "个文件",
+    "cancelTransfer": "取消传输",
+    "overwrite": "覆盖并传输",
+    "transfer": "开始传输",
+    "retry": "重试"
+  },
   "terminal": {
     "connecting": "正在连接到 {{host}}...",
     "connectionFailed": "连接失败",

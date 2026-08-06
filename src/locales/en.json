@@ -80,6 +80,27 @@
     "qaCheckSystem": "System Status",
     "qaCheckSystemPrompt": "Please check the system status (CPU, Memory, Disk space) and provide a health summary."
   },
+  "fileTransfer": {
+    "title": "Transfer to another session",
+    "sendToSession": "Send to session",
+    "source": "Source",
+    "targetSession": "Target session",
+    "targetDirectory": "Target directory",
+    "destination": "Destination",
+    "openDirectory": "Open directory",
+    "noTargetSession": "Save another SSH session before transferring files.",
+    "loadTargetFailed": "Failed to load target directory",
+    "typeConflict": "A file and directory have the same target path. Resolve the conflict first.",
+    "conflictsFound": "{{count}} existing files will be overwritten.",
+    "starting": "Starting transfer...",
+    "complete": "Transfer complete",
+    "cancelled": "Transfer cancelled",
+    "files": "files",
+    "cancelTransfer": "Cancel transfer",
+    "overwrite": "Overwrite and transfer",
+    "transfer": "Transfer",
+    "retry": "Retry"
+  },
   "terminal": {
     "connecting": "Connecting to {{host}}...",
     "connectionFailed": "Connection Failed",

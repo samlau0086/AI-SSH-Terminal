@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Session } from '../App';
-import { Activity, Upload, HardDrive, Cpu, Check, X, AlertCircle, Folder, File as FileIcon, Download, RefreshCw, ChevronRight, Trash, Database } from 'lucide-react';
+import { Activity, Upload, HardDrive, Cpu, Check, X, AlertCircle, Folder, File as FileIcon, Download, RefreshCw, ChevronRight, Trash, Database, ArrowRightLeft } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../lib/utils';
+import FileTransferModal from './FileTransferModal';
 
 interface Props {
   session: Session;
+  allSessions: Session[];
   refreshInterval?: number;
 }
 
@@ -23,7 +25,7 @@ interface RemoteFile {
   }
 }
 
-export default function SessionInfoPanel({ session, refreshInterval = 10000 }: Props) {
+export default function SessionInfoPanel({ session, allSessions, refreshInterval = 10000 }: Props) {
   const { t } = useTranslation();
   const { token } = useAuth();
   const [statsStr, setStatsStr] = useState<string>('');
@@ -38,6 +40,7 @@ export default function SessionInfoPanel({ session, refreshInterval = 10000 }: P
   const [files, setFiles] = useState<RemoteFile[]>([]);
   const [isLoadingFiles, setIsLoadingFiles] = useState(false);
   const [fileError, setFileError] = useState('');
+  const [transferFile, setTransferFile] = useState<RemoteFile | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -303,7 +306,10 @@ export default function SessionInfoPanel({ session, refreshInterval = 10000 }: P
      }
   }
 
+  const filePath = (filename: string) => `${targetPath.replace(/\/$/, '')}/${filename}`;
+
   return (
+    <>
     <div 
       ref={containerRef}
       className={cn(
@@ -482,6 +488,16 @@ export default function SessionInfoPanel({ session, refreshInterval = 10000 }: P
                                      </td>
                                      <td className="py-1.5 px-2 text-right">
                                          <div className="flex justify-end items-center gap-1">
+                                             {f.filename !== '.' && f.filename !== '..' && allSessions.length > 1 && (
+                                                 <button
+                                                    type="button"
+                                                    onClick={() => setTransferFile(f)}
+                                                    className="text-zinc-500 hover:text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
+                                                    title={t('fileTransfer.sendToSession', 'Send to session')}
+                                                 >
+                                                    <ArrowRightLeft className="w-3.5 h-3.5" />
+                                                 </button>
+                                             )}
                                              {!isDir && (
                                                  <button 
                                                     onClick={() => handleDownload(f.filename)}
@@ -576,5 +592,15 @@ export default function SessionInfoPanel({ session, refreshInterval = 10000 }: P
          )}
       </div>
     </div>
+    {transferFile && token && (
+      <FileTransferModal
+        sourceSession={session}
+        sourcePath={filePath(transferFile.filename)}
+        sessions={allSessions}
+        token={token}
+        onClose={() => setTransferFile(null)}
+      />
+    )}
+    </>
   );
 }
