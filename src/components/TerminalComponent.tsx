@@ -118,6 +118,8 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, allSessions
       });
       setCmdInput('');
       setHistoryIndex(-1);
+
+      window.setTimeout(() => xtermRef.current?.focus(), 0);
     }
   };
 
@@ -409,7 +411,11 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, allSessions
         </div>
       )}
 
-      <div ref={terminalRef} className="flex-1 w-full min-h-0 overflow-hidden" />
+      <div
+        ref={terminalRef}
+        onMouseDown={() => xtermRef.current?.focus()}
+        className="flex-1 w-full min-h-0 overflow-hidden"
+      />
       
       {/* Command Input Bar */}
       <form 
