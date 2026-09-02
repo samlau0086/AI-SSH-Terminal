@@ -192,12 +192,7 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, allSessions
         return;
       }
 
-      const target = event.target as HTMLElement | null;
-      const isTerminalTarget = target === document.body
-        || target === commandInputRef.current
-        || !!(target && terminalRef.current?.contains(target))
-        || !!(target && commandFormRef.current?.contains(target));
-      if (!isTerminalTarget) {
+      if (document.activeElement === commandInputRef.current) {
         return;
       }
 
