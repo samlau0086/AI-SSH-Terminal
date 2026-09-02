@@ -31,6 +31,7 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, allSessions
   const [errorMsg, setErrorMsg] = useState('');
   const outputBuffer = useRef<string[]>([]);
   const connectionCleanupRef = useRef<(() => void) | null>(null);
+  const focusTerminalAfterCommandRef = useRef(false);
   
   const [cmdInput, setCmdInput] = useState('');
   const [history, setHistory] = useState<string[]>([]);
@@ -79,6 +80,8 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, allSessions
 
   const runCommand = async (cmd: string) => {
     if (!socket || status !== 'connected') return;
+
+    focusTerminalAfterCommandRef.current = true;
 
     if (multiLineCommandDelay > 0) {
       // Split by newline and filter out entirely empty lines if needed,
@@ -274,6 +277,11 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, allSessions
     newSocket.on('ssh-data', (data: string) => {
       if (xtermRef.current) {
         xtermRef.current.write(data);
+
+        if (focusTerminalAfterCommandRef.current) {
+          focusTerminalAfterCommandRef.current = false;
+          window.setTimeout(() => xtermRef.current?.focus(), 0);
+        }
         
         // Track output for context (keep last 50 lines approximate)
         const lines = data.split('\n');
