@@ -109,6 +109,10 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, allSessions
 
     focusTerminalAfterCommandRef.current = true;
     terminalInputModeRef.current = true;
+    const activeElement = document.activeElement;
+    if (activeElement instanceof HTMLElement) {
+      activeElement.blur();
+    }
 
     if (multiLineCommandDelay > 0) {
       // Split by newline and filter out entirely empty lines if needed,
@@ -188,7 +192,10 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, allSessions
       }
 
       const target = event.target as HTMLElement | null;
-      if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) && target !== commandInputRef.current) {
+      const isTerminalTarget = target === document.body
+        || target === commandInputRef.current
+        || !!(target && terminalRef.current?.contains(target));
+      if (!isTerminalTarget) {
         return;
       }
 
@@ -315,6 +322,7 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, allSessions
     newSocket.on('ssh-status', (stat: any) => {
       if (stat.status === 'connected' || stat.status === 'shell-ready') {
         setStatus('connected');
+        terminalInputModeRef.current = true;
         if (xtermRef.current) {
           xtermRef.current.focus();
         }
@@ -475,7 +483,10 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, allSessions
 
       <div
         ref={terminalRef}
-        onMouseDown={() => xtermRef.current?.focus()}
+        onMouseDown={() => {
+          terminalInputModeRef.current = true;
+          xtermRef.current?.focus();
+        }}
         className="flex-1 w-full min-h-0 overflow-hidden"
       />
       
