@@ -21,6 +21,30 @@ export interface TerminalRef {
   executeCommand: (cmd: string) => void;
 }
 
+const getTerminalKeySequence = (event: KeyboardEvent) => {
+  if (event.ctrlKey && event.key.length === 1) {
+    return String.fromCharCode(event.key.toUpperCase().charCodeAt(0) - 64);
+  }
+
+  switch (event.key) {
+    case 'Enter': return '\r';
+    case 'Escape': return '\x1b';
+    case 'Backspace': return '\x7f';
+    case 'Tab': return '\t';
+    case 'ArrowUp': return '\x1b[A';
+    case 'ArrowDown': return '\x1b[B';
+    case 'ArrowRight': return '\x1b[C';
+    case 'ArrowLeft': return '\x1b[D';
+    case 'Home': return '\x1b[H';
+    case 'End': return '\x1b[F';
+    case 'Delete': return '\x1b[3~';
+    case 'PageUp': return '\x1b[5~';
+    case 'PageDown': return '\x1b[6~';
+    default:
+      return !event.altKey && !event.metaKey && event.key.length === 1 ? event.key : null;
+  }
+};
+
 const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, allSessions = [], onContextUpdate, historySize = 200, multiLineCommandDelay = 0 }, ref) => {
   const { t } = useTranslation();
   const { isDark } = useTheme();
@@ -32,6 +56,8 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, allSessions
   const outputBuffer = useRef<string[]>([]);
   const connectionCleanupRef = useRef<(() => void) | null>(null);
   const focusTerminalAfterCommandRef = useRef(false);
+  const commandInputRef = useRef<HTMLTextAreaElement>(null);
+  const terminalInputModeRef = useRef(false);
   
   const [cmdInput, setCmdInput] = useState('');
   const [history, setHistory] = useState<string[]>([]);
@@ -82,6 +108,7 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, allSessions
     if (!socket || status !== 'connected') return;
 
     focusTerminalAfterCommandRef.current = true;
+    terminalInputModeRef.current = true;
 
     if (multiLineCommandDelay > 0) {
       // Split by newline and filter out entirely empty lines if needed,
@@ -149,6 +176,33 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, allSessions
       }
     }
   };
+
+  useEffect(() => {
+    const forwardFallbackKey = (event: KeyboardEvent) => {
+      if (!terminalInputModeRef.current || !socket || status !== 'connected' || event.defaultPrevented || event.isComposing) {
+        return;
+      }
+
+      if (xtermRef.current?.element?.contains(document.activeElement)) {
+        return;
+      }
+
+      const target = event.target as HTMLElement | null;
+      if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) && target !== commandInputRef.current) {
+        return;
+      }
+
+      const sequence = getTerminalKeySequence(event);
+      if (!sequence) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      socket.emit('ssh-data', sequence);
+    };
+
+    document.addEventListener('keydown', forwardFallbackKey, true);
+    return () => document.removeEventListener('keydown', forwardFallbackKey, true);
+  }, [socket, status]);
 
   
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -428,11 +482,13 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, allSessions
       {/* Command Input Bar */}
       <form 
         onSubmit={handleCommandSubmit}
+        onFocusCapture={() => { terminalInputModeRef.current = false; }}
         className="mt-2 shrink-0 flex items-end bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 rounded-md p-1 relative z-10"
       >
         <span className="text-zinc-500 font-mono text-xs ml-2 mr-2 shrink-0 mb-2">$</span>
         <TextareaAutosize
           id="cmd-input-textarea"
+          ref={commandInputRef}
           value={cmdInput}
           onChange={e => setCmdInput(e.target.value)}
           onKeyDown={handleKeyDown}
