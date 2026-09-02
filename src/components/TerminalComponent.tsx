@@ -57,6 +57,7 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, allSessions
   const connectionCleanupRef = useRef<(() => void) | null>(null);
   const focusTerminalAfterCommandRef = useRef(false);
   const commandInputRef = useRef<HTMLTextAreaElement>(null);
+  const commandFormRef = useRef<HTMLFormElement>(null);
   const terminalInputModeRef = useRef(false);
   
   const [cmdInput, setCmdInput] = useState('');
@@ -194,7 +195,8 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, allSessions
       const target = event.target as HTMLElement | null;
       const isTerminalTarget = target === document.body
         || target === commandInputRef.current
-        || !!(target && terminalRef.current?.contains(target));
+        || !!(target && terminalRef.current?.contains(target))
+        || !!(target && commandFormRef.current?.contains(target));
       if (!isTerminalTarget) {
         return;
       }
@@ -492,6 +494,7 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, allSessions
       
       {/* Command Input Bar */}
       <form 
+        ref={commandFormRef}
         onSubmit={handleCommandSubmit}
         onFocusCapture={() => { terminalInputModeRef.current = false; }}
         className="mt-2 shrink-0 flex items-end bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 rounded-md p-1 relative z-10"
