@@ -34,6 +34,13 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, allSessions
   const outputBuffer = useRef<string[]>([]);
   const connectionCleanupRef = useRef<(() => void) | null>(null);
   const focusTerminalAfterCommandRef = useRef(false);
+  const focusTerminal = () => {
+    const terminal = xtermRef.current;
+    if (!terminal) return;
+
+    terminal.focus();
+    terminal.textarea?.focus();
+  };
   
   const [cmdInput, setCmdInput] = useState('');
   const [history, setHistory] = useState<string[]>([]);
@@ -105,7 +112,7 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, allSessions
       runCommand(cmd).then(() => {
         // Let's also ensure the terminal gets focus
         setTimeout(() => {
-          xtermRef.current?.focus();
+          focusTerminal();
         }, 100);
       });
     }
@@ -123,7 +130,7 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, allSessions
       setCmdInput('');
       setHistoryIndex(-1);
 
-      window.setTimeout(() => xtermRef.current?.focus(), 0);
+      window.setTimeout(focusTerminal, 0);
     }
   };
 
@@ -281,7 +288,7 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, allSessions
 
         if (focusTerminalAfterCommandRef.current) {
           focusTerminalAfterCommandRef.current = false;
-          window.setTimeout(() => xtermRef.current?.focus(), 0);
+          window.setTimeout(focusTerminal, 0);
         }
         
         // Track output for context (keep last 50 lines approximate)
@@ -422,7 +429,7 @@ const TerminalComponent = forwardRef<TerminalRef, Props>(({ session, allSessions
 
       <div
         ref={terminalRef}
-        onMouseDown={() => xtermRef.current?.focus()}
+        onMouseDown={focusTerminal}
         className="flex-1 w-full min-h-0 overflow-hidden"
       />
       
